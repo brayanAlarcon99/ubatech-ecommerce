@@ -103,7 +103,7 @@ export default function CartPage() {
                 className="w-full block text-center py-3 rounded-lg font-semibold text-white transition-colors"
                 style={{ backgroundColor: "var(--primary)" }}
               >
-                Proceder al Checkout
+                Continuar con la compra
               </Link>
             </div>
           </div>
