@@ -489,7 +489,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                   <p className="text-sm font-medium text-gray-700 mb-1">
                     Haz clic para seleccionar o arrastra una imagen
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 mb-3">
                     También puedes pegar una imagen con <kbd className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">Ctrl+V</kbd>
                   </p>
                 </div>
@@ -500,6 +500,12 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                   className="hidden"
                   id="image-input"
                 />
+                <label
+                  htmlFor="image-input"
+                  className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 cursor-pointer transition-colors"
+                >
+                  📁 Cargar imagen
+                </label>
               </div>
               
               {imageError && (
