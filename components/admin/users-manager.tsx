@@ -91,6 +91,13 @@ export default function UsersManager() {
       // Obtener email del usuario actual para auditoría
       const auth = getAuth()
       const currentUserEmail = auth.currentUser?.email || "admin@system"
+      const currentUserId = auth.currentUser?.uid
+
+      if (!currentUserId) {
+        setError("Error: No hay sesión activa. Por favor inicia sesión nuevamente.")
+        setIsCreating(false)
+        return
+      }
 
       // Crear administrador usando el servicio
       const result = await adminService.createAdmin(newEmail, newPassword, currentUserEmail)
@@ -99,8 +106,11 @@ export default function UsersManager() {
         setSuccess(result.message)
         setNewEmail("")
         setNewPassword("")
-        // Recargar lista de administradores
-        await fetchAdminUsers()
+        
+        // Recargar lista de administradores después de una breve espera
+        setTimeout(async () => {
+          await fetchAdminUsers()
+        }, 1000)
       } else {
         setError(result.message)
       }

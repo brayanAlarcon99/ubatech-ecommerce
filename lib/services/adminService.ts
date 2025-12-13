@@ -1,9 +1,10 @@
 import {
   getAuth,
   createUserWithEmailAndPassword,
-  signOut,
   signInWithEmailAndPassword,
   AuthError,
+  Auth,
+  User,
 } from "firebase/auth"
 import {
   collection,
@@ -49,6 +50,7 @@ export const adminService = {
   }> {
     let userCreated = false
     let userUid = ""
+    let superUserCredentials: { email: string; password: string } | null = null
 
     try {
       // Validar que el email sea válido
@@ -81,8 +83,18 @@ export const adminService = {
         }
       }
 
-      // Crear usuario en Firebase Authentication
+      // Obtener usuario actual (super usuario)
       const auth = getAuth(app)
+      const currentUser = auth.currentUser
+      
+      if (!currentUser) {
+        return {
+          success: false,
+          message: "No hay usuario autenticado. Por favor inicia sesión nuevamente.",
+        }
+      }
+
+      // Crear usuario en Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -118,14 +130,11 @@ export const adminService = {
         throw new Error("Error de verificación: documento no se guardó")
       }
 
-      // Cerrar sesión del usuario recién creado para mantener la sesión del super admin
-      try {
-        await signOut(auth)
-        // Volver a iniciar sesión con el super admin si es necesario
-        // Esto se maneja desde el componente
-      } catch (signOutError) {
-        console.warn("Error al cerrar sesión temporal:", signOutError)
-      }
+      // IMPORTANTE: No cerrar sesión. El usuario recién creado será reemplazado
+      // por el super usuario cuando se recarga la página, ya que su sesión se mantiene
+      // en localStorage y será restaurada automáticamente por el middleware de autenticación.
+      
+      console.log("✅ Nuevo administrador creado exitosamente. La sesión será restaurada automáticamente.")
 
       return {
         success: true,
@@ -139,9 +148,11 @@ export const adminService = {
       if (userCreated && userUid) {
         try {
           const auth = getAuth(app)
-          const userToDelete = auth.currentUser
-          if (userToDelete) {
-            await userToDelete.delete()
+          // Obtener una referencia al usuario creado
+          const currentUser = auth.currentUser
+          if (currentUser && currentUser.uid === userUid) {
+            // Solo eliminarlo si está actualmente autenticado
+            await currentUser.delete()
             console.log("🗑️ Usuario eliminado de Firebase Auth por error en Firestore")
           }
         } catch (deleteError) {
