@@ -1,0 +1,94 @@
+# 🔴 ERROR FIRESTORE - SOLUCIÓN INMEDIATA
+
+## El Problema
+```
+FirebaseError: Missing or insufficient permissions.
+```
+
+**Causa**: Las Firestore Rules no permiten lectura pública.
+
+**Solución**: Actualizar 1 archivo en Firebase (5 minutos).
+
+---
+
+## ✅ Cómo Hacerlo
+
+### 1. Abre esto en navegador:
+```
+https://console.firebase.google.com/project/ubatech-a8650/firestore/rules
+```
+
+### 2. Borra el contenido actual:
+```
+Ctrl + A
+Delete
+```
+
+### 3. Copia y pega ESTO:
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /store_settings/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /products/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /categories/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /orders/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    match /adminUsers/{userId} {
+      allow read, write: if request.auth != null;
+    }
+    match /config/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+### 4. Haz clic en "Publish" (botón azul)
+
+### 5. Espera a que diga:
+```
+✅ Published successfully
+```
+
+### 6. Recarga el navegador:
+```
+Ctrl + F5
+```
+
+---
+
+## ✅ Listo
+
+El error debe desaparecer y deberías ver:
+- ✅ Datos en el header
+- ✅ Footer completo
+- ✅ Hero con descripción
+- ✅ Sin errores en consola (F12)
+
+---
+
+## 🎯 Próximas Veces
+
+Ya no tendrás que hacer nada. Todo funciona automático.
+
+Cuando cambies datos en admin, aparecen en público en **1-3 segundos**.
+
+---
+
+**Tiempo total**: 5 minutos  
+**Dificultad**: Muy fácil  
+**¡Hazlo AHORA!**

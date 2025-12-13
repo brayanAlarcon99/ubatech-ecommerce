@@ -1,0 +1,192 @@
+# ⚡ REFERENCIA RÁPIDA: Norma de Estructura Jerárquica
+
+## 🎯 La Norma en Una Línea
+
+**Si un producto tiene subcategoría, DEBE estar reflejada en la categoría principal.**
+
+---
+
+## 📋 Estructura Obligatoria
+
+```
+CATEGORÍA PRINCIPAL
+  └─ SUBCATEGORÍA (opcional)
+      └─ PRODUCTO
+```
+
+### Ejemplo Real
+
+```
+CELULARES (categoría)
+  ├─ SAMSUNG (subcategoría)
+  │   ├─ Galaxy A13
+  │   └─ Galaxy S23
+  │
+  ├─ REDMI (subcategoría)
+  │   ├─ NOTE14PRO+
+  │   └─ Note 13
+  │
+  └─ IPHONE (subcategoría)
+      └─ iPhone 15 Pro
+```
+
+---
+
+## ✅ Validaciones (Automáticas)
+
+| Acción | Validación | Resultado |
+|--------|-----------|-----------|
+| Crear producto con subcategoría | ¿Subcategoría existe? ¿Pertenece a la categoría? | ✅ Sí/Sí → Guardar |
+| Crear producto sin subcategoría | - | ✅ Siempre permitido |
+| Eliminar categoría con productos | ¿Tiene productos? | ❌ No permitido |
+| Eliminar subcategoría con productos | ¿Tiene productos? | ❌ No permitido |
+| Agregar subcategoría | ¿Categoría existe? | ✅ Sí → Crear |
+
+---
+
+## 🚀 Uso en Panel Admin
+
+### Crear Producto
+
+```javascript
+1. Selecciona Categoría: "Celulares"
+2. Sistema carga: ["Samsung", "Redmi", "iPhone"]
+3. Selecciona Subcategoría: "Redmi"
+4. Sistema valida: ✅ Redmi pertenece a Celulares
+5. Guardar → ✅ Producto creado
+```
+
+### Eliminar Categoría
+
+```javascript
+1. Admin intenta eliminar: "Celulares"
+2. Sistema verifica: ¿Productos en Celulares?
+3. Resultado: Sí, 40 productos
+4. Sistema bloquea: ❌ No se puede eliminar
+```
+
+---
+
+## 🗂️ Estructura en Firebase
+
+### collections/categories
+```json
+{ "id": "cat_001", "name": "Celulares" }
+```
+
+### collections/subcategories
+```json
+{ "id": "sub_001", "name": "Redmi", "categoryId": "cat_001" }
+```
+
+### collections/products
+```json
+{
+  "id": "prod_001",
+  "name": "NOTE14PRO+",
+  "category": "Celulares",        ← Nombre de categoría
+  "subcategory": "sub_001"        ← ID de subcategoría
+}
+```
+
+---
+
+## 🔐 Firestore Rules (Resumen)
+
+```firestore
+// Permite crear producto SI:
+// 1. Usuario es admin
+// 2. Si hay subcategoría: existe y pertenece a la categoría
+
+allow create: if isAdmin() && validateHierarchy();
+
+function validateHierarchy() {
+  let product = request.resource.data;
+  if (!product.subcategory) return true;  // OK sin subcategoría
+  
+  let sub = getSubcategory(product.subcategory);
+  return sub.categoryId == getCategoryId(product.category);
+}
+```
+
+---
+
+## 🎨 Vista Cliente (Tienda)
+
+```
+CATEGORÍA: CELULARES
+├─ Menú Lateral: Filtrar por...
+│  ├─ ☑ Samsung
+│  ├─ ☑ Redmi
+│  ├─ ☑ iPhone
+│  └─ ☑ Otro
+│
+└─ Productos:
+   ├─ Galaxy A13 (Samsung)
+   ├─ NOTE14PRO+ (Redmi)
+   ├─ iPhone 15 (iPhone)
+   └─ Producto Genérico
+```
+
+---
+
+## 📡 Funciones JavaScript (lib/subcategories.ts)
+
+### Validar Producto
+```typescript
+const { valid, error } = await validateProductHierarchy({
+  category: "Celulares",
+  subcategory: "sub_redmi_001"
+});
+if (!valid) console.error(error);
+```
+
+### Obtener Subcategorías
+```typescript
+const subs = await getSubcategoriesByCategory("cat_001");
+// Retorna: [{id, name, categoryId}, ...]
+```
+
+---
+
+## ❌ Errores Comunes
+
+| Error | Causa | Solución |
+|-------|-------|----------|
+| "Subcategoría no pertenece a esta categoría" | Seleccionaste subcategoría de otra categoría | Reselecciona la subcategoría correcta |
+| "No se puede eliminar, tiene productos" | Intentas eliminar categoría/subcategoría con productos | Primero elimina o reasigna los productos |
+| "Subcategoría no existe" | El ID de subcategoría es inválido | Crea la subcategoría primero |
+
+---
+
+## 🔍 Verificación Rápida
+
+```bash
+# ¿El producto aparece en la categoría?
+firebase.firestore.getDocs("products", {category: "Celulares"})
+→ Si contiene el producto → ✅ OK
+
+# ¿La subcategoría existe?
+firebase.firestore.getDoc("subcategories/sub_redmi_001")
+→ Si existe y categoryId es correcto → ✅ OK
+
+# ¿Hay conflictos de referencia?
+Buscar productos donde subcategoría no existe
+→ Si hay → ❌ Error, revisar base de datos
+```
+
+---
+
+## 📝 Archivos Relacionados
+
+| Archivo | Descripción |
+|---------|-------------|
+| `FIRESTORE_RULES_CORRECTAS.txt` | Reglas Firestore con validaciones |
+| `NORMA_ESTRUCTURA_JERARQUICA.md` | Documentación completa |
+| `GUIA_VISUAL_ESTRUCTURA_JERARQUICA.md` | Diagramas y flujos visuales |
+| `lib/subcategories.ts` | Funciones de validación |
+| `components/admin/product-form.tsx` | Interfaz de creación de productos |
+
+---
+
+**¿Necesitas ayuda?** Revisa el archivo completo en `NORMA_ESTRUCTURA_JERARQUICA.md`

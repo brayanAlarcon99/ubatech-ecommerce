@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Función helper para verificar si es admin
+    function hasAdminRole() {
+      return exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid));
+    }
+
+    // PRODUCTOS - Lectura pública, escritura admin
+    match /products/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && hasAdminRole();
+    }
+
+    // CATEGORÍAS - Lectura pública, escritura admin
+    match /categories/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && hasAdminRole();
+    }
+
+    // SUBCATEGORÍAS - Lectura pública, escritura admin
+    match /subcategories/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && hasAdminRole();
+    }
+
+    // STORE SETTINGS - Lectura pública, escritura admin
+    match /store_settings/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && hasAdminRole();
+    }
+
+    // PLATFORM INFO - Lectura pública, escritura admin
+    match /platform_info/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && hasAdminRole();
+    }
+
+    // ⭐ SETTINGS (NUEVO) - Control de página pública
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && hasAdminRole();
+    }
+
+    // ADMIN USERS - Lectura y escritura solo admin
+    match /adminUsers/{document=**} {
+      allow read: if request.auth != null && hasAdminRole();
+      allow write: if request.auth != null && hasAdminRole();
+    }
+
+    // ÓRDENES - Lectura y escritura autenticados
+    match /orders/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // CONFIG - Lectura y escritura admin
+    match /config/{document=**} {
+      allow read, write: if request.auth != null && hasAdminRole();
+    }
+
+    // REGLA POR DEFECTO - Solo autenticados
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
