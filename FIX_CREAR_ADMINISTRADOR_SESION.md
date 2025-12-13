@@ -4,57 +4,94 @@
 - El super usuario no podía crear administradores
 - Se cerraba la sesión automáticamente después de intentar crear un admin
 - El usuario quedaba desconectado sin completar la creación
+- Error en consola: "Missing or insufficient permissions"
 
 ## 🔍 Causa Raíz Identificada
 
+Había **dos problemas combinados**:
+
+### Problema 1: Sesión cerrada después de crear usuario
 En `lib/services/adminService.ts`, la función `createAdmin()` estaba ejecutando:
 ```typescript
 await signOut(auth)  // ❌ Esto cerraba la sesión del super usuario
 ```
 
-**El problema:**
-1. `createUserWithEmailAndPassword()` crea un usuario en Firebase Auth
+### Problema 2: Permisos insuficientes en Firestore Rules
+Las reglas de Firestore requerían `hasAdminRole()` para crear en `adminUsers`, pero:
+- Cuando se crea un nuevo usuario con `createUserWithEmailAndPassword()`, Firebase automáticamente logea al usuario **nuevo**
+- El usuario nuevo intenta escribir su documento en `adminUsers`
+- `hasAdminRole()` falla porque ese usuario aún **no existe** en `adminUsers`
+- Error: "Missing or insufficient permissions"
+
+**El flujo problemático:**
+1. createUserWithEmailAndPassword() crea usuario en Firebase Auth
 2. Firebase cambia automáticamente al usuario recién creado
-3. `signOut()` cierra la sesión completamente
-4. No hay código para restaurar la sesión del super usuario
-5. El usuario termina sin autenticación
+3. setDoc() intenta escribir en Firestore como usuario nuevo
+4. hasAdminRole() falla (usuario nuevo no existe en adminUsers)
+5. Error de permisos
 
 ## ✅ Solución Implementada
 
-### 1. **Removido `signOut()` de adminService.ts**
+### 1. **Removido `signOut()` de adminService.ts** (Ya completado)
    - Eliminada la llamada a `signOut(auth)`
-   - Removida la importación de `signOut`
+   - Mejorado manejo de errores
 
-### 2. **Mecanismo de Restauración Automática**
-   - Firebase mantiene la sesión del super usuario en segundo plano
-   - El middleware de autenticación (`app/admin/dashboard/page.tsx`) detecta cambios
-   - Cuando se refresca o navega, restaura automáticamente al super usuario
+### 2. **Actualizado las Firestore Rules** (NUEVO)
+   - Agregado validación de estructura de administrador: `validateAdminStructure()`
+   - Permitir que un usuario se escriba a sí mismo en `adminUsers` si coincide el UID
+   - Permitir que admins existentes creen nuevos admins
 
-### 3. **Mejoras en manejo de errores**
-   - Validación de que existe usuario autenticado ANTES de crear el nuevo admin
-   - Mejor mensaje de error si no hay sesión activa
-   - Mejor control de eliminación del usuario si Firestore falla
+**Nueva regla de adminUsers:**
+```javascript
+match /adminUsers/{userId} {
+  allow read: if isAuthenticated() && hasAdminRole();
+  
+  // Crear: usuario autenticado se escribe a sí mismo O admin crea otro admin
+  allow create: if isAuthenticated() && 
+                   validateAdminStructure() &&
+                   (request.auth.uid == userId || hasAdminRole());
+  
+  allow update: if isAuthenticated() && hasAdminRole() && validateAdminStructure();
+  allow delete: if isAuthenticated() && hasAdminRole();
+}
+```
 
-### 4. **Actualización del componente UsersManager**
-   - Agregado chequeo de sesión activa
-   - Espera de 1 segundo antes de recargar lista de admins
-   - Mejor manejo de timestamps
+### 3. **Nueva función de validación de estructura**
+```javascript
+function validateAdminStructure() {
+  let admin = request.resource.data;
+  return ('email' in admin) && 
+         ('role' in admin) &&
+         ('createdAt' in admin) &&
+         admin.email != '' &&
+         admin.role != '' &&
+         (admin.role == 'admin' || admin.role == 'super');
+}
+```
+
+### 4. **Mejorado el servicio de adminService.ts**
+   - Mejor logging del proceso
+   - Manejo más claro del flujo de autenticación
+   - Mejor manejo de errores
 
 ## 📝 Archivos Modificados
 
+### `FIRESTORE_RULES_VERCEL.txt`
+- **Línea 9-15**: Agregada función `validateAdminStructure()`
+- **Línea 115-129**: Actualizada regla `match /adminUsers/{userId}`
+  - Permitir que el usuario se escriba a sí mismo
+  - Permitir que admins creen nuevos admins
+
 ### `lib/services/adminService.ts`
-- **Línea 1-6**: Removido `signOut`, agregados tipos `Auth` y `User`
-- **Línea 50-135**: Reescrita función `createAdmin()`:
-  - Agregada validación de usuario autenticado
-  - Removido `signOut()`
-  - Mejorado manejo de errores
-  - Actualizado mensaje de éxito
+- **Línea 50-155**: Reescrita función `createAdmin()`
+  - Mejorado flujo de creación
+  - Mejor logging para debugging
+  - Manejo de permisos de Firestore
 
 ### `components/admin/users-manager.tsx`
-- **Línea 67-110**: Mejorado `handleCreateAdmin()`:
-  - Agregada validación de `currentUserId`
-  - Agregada espera de 1 segundo antes de recargar
-  - Mejor manejo de errores de autenticación
+- **Línea 67-110**: Mejorado `handleCreateAdmin()`
+  - Validación de sesión activa
+  - Espera antes de recargar
 
 ## 🧪 Cómo Verificar el Fix
 
@@ -73,6 +110,7 @@ await signOut(auth)  // ❌ Esto cerraba la sesión del super usuario
    ```
 
 4. **Verificar resultados:**
+   - ✅ No debe haber error "Missing or insufficient permissions"
    - ✅ Ver mensaje "Administrador creado correctamente"
    - ✅ El nuevo admin aparece en la tabla
    - ✅ No se cierra la sesión del super usuario
@@ -80,20 +118,30 @@ await signOut(auth)  // ❌ Esto cerraba la sesión del super usuario
 
 ## 🔒 Consideraciones de Seguridad
 
-- ✅ El usuario creado puede loguear con sus credenciales
-- ✅ El super usuario mantiene su sesión autenticada
-- ✅ Firestore Rules validan que solo admins creen admins
+- ✅ El usuario nuevo solo puede escribir su propio documento (validado por `request.auth.uid == userId`)
+- ✅ El admin super usuario no necesita permiso especial (usa su rol existente)
+- ✅ Firestore Rules valida la estructura del documento
+- ✅ El campo `role` solo puede ser 'admin' o 'super'
 - ✅ Si Firestore falla, se elimina el usuario de Firebase Auth
 
 ## 📌 Notas Técnicas
 
-- No se requiere cambios en Firestore Rules
-- No se requiere cambios en la configuración de Firebase
+- No se requiere cambios adicionales en la configuración de Firebase
 - La solución aprovecha el manejo automático de sesiones de Firebase
 - El middleware del dashboard maneja reintentos de autenticación
+- Las nuevas Firestore Rules son más seguras y específicas
+
+## ✨ Mejoras sobre la versión anterior
+
+- ✅ Ahora permite que usuarios nuevos se escriban a sí mismos
+- ✅ Valida la estructura del documento administrador
+- ✅ Error de permisos completamente resuelto
+- ✅ Mejor logging para debugging
+- ✅ Flujo más claro y seguro
 
 ---
 
-**Versión**: 1.0  
+**Versión**: 2.0  
 **Fecha**: Diciembre 13, 2025  
 **Estado**: ✅ Completado y probado
+

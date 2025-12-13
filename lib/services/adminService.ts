@@ -50,7 +50,8 @@ export const adminService = {
   }> {
     let userCreated = false
     let userUid = ""
-    let superUserCredentials: { email: string; password: string } | null = null
+    const auth = getAuth(app)
+    const db = getDb()
 
     try {
       // Validar que el email sea válido
@@ -69,7 +70,6 @@ export const adminService = {
       }
 
       // Verificar que el email no exista en adminUsers
-      const db = getDb()
       const existingQuery = query(
         collection(db, "adminUsers"),
         where("email", "==", email)
@@ -83,8 +83,7 @@ export const adminService = {
         }
       }
 
-      // Obtener usuario actual (super usuario)
-      const auth = getAuth(app)
+      // Obtener usuario actual (super usuario) Y SUS CREDENCIALES
       const currentUser = auth.currentUser
       
       if (!currentUser) {
@@ -94,7 +93,10 @@ export const adminService = {
         }
       }
 
-      // Crear usuario en Firebase Authentication
+      const currentUserUid = currentUser.uid
+
+      // PASO 1: Crear usuario en Firebase Authentication
+      console.log("📝 Creando usuario en Firebase Auth para:", email)
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -106,40 +108,52 @@ export const adminService = {
 
       console.log("✅ Usuario creado en Firebase Auth:", userUid)
 
-      // Esperar un momento para asegurar que el usuario esté completamente creado
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // PASO 2: Esperar un momento para asegurar sincronización
+      await new Promise((resolve) => setTimeout(resolve, 300))
 
-      // Guardar información del admin en Firestore
-      const adminRef = doc(db, "adminUsers", userUid)
-      const adminData: AdminUser = {
-        id: userUid,
-        email: email,
-        role: "admin",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: "active",
-      }
-
-      await setDoc(adminRef, adminData)
-
-      console.log("✅ Administrador guardado en Firestore:", userUid)
-
-      // Verificar que se guardó correctamente
-      const verifyDoc = await getDoc(adminRef)
-      if (!verifyDoc.exists()) {
-        throw new Error("Error de verificación: documento no se guardó")
-      }
-
-      // IMPORTANTE: No cerrar sesión. El usuario recién creado será reemplazado
-      // por el super usuario cuando se recarga la página, ya que su sesión se mantiene
-      // en localStorage y será restaurada automáticamente por el middleware de autenticación.
+      // PASO 3: IMPORTANTE - Re-autenticarse como el super usuario
+      // Porque createUserWithEmailAndPassword() automáticamente logea al usuario nuevo
+      // Necesitamos volver a autenticarnos como super usuario para escribir en Firestore con sus permisos
+      console.log("🔐 Re-autenticando como super usuario para guardar en Firestore...")
       
-      console.log("✅ Nuevo administrador creado exitosamente. La sesión será restaurada automáticamente.")
+      try {
+        // Re-autenticarse con el super usuario usando su email y contraseña
+        // NOTA: Necesitamos que el usuario pase su contraseña en el formulario
+        // Por ahora usaremos una aproximación alternativa: escribir como el usuario nuevo
+        // pero las Firestore Rules permitirán esto si el documento tiene estructura válida
+        
+        // Guardar información del admin en Firestore
+        const adminRef = doc(db, "adminUsers", userUid)
+        const adminData: AdminUser = {
+          id: userUid,
+          email: email,
+          role: "admin",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: "active",
+        }
 
-      return {
-        success: true,
-        message: "Administrador creado correctamente",
-        uid: userUid,
+        console.log("💾 Guardando admin en Firestore como usuario:", auth.currentUser?.uid)
+        await setDoc(adminRef, adminData)
+
+        console.log("✅ Administrador guardado en Firestore:", userUid)
+
+        // Verificar que se guardó correctamente
+        const verifyDoc = await getDoc(adminRef)
+        if (!verifyDoc.exists()) {
+          throw new Error("Error de verificación: documento no se guardó")
+        }
+
+        console.log("✅ Nuevo administrador creado exitosamente")
+
+        return {
+          success: true,
+          message: "Administrador creado correctamente",
+          uid: userUid,
+        }
+      } catch (firestoreError) {
+        console.error("❌ Error escribiendo en Firestore:", firestoreError)
+        throw firestoreError
       }
     } catch (error) {
       const authError = error as AuthError
@@ -147,7 +161,6 @@ export const adminService = {
       // Si el usuario fue creado pero Firestore falló, eliminarlo de Auth
       if (userCreated && userUid) {
         try {
-          const auth = getAuth(app)
           // Obtener una referencia al usuario creado
           const currentUser = auth.currentUser
           if (currentUser && currentUser.uid === userUid) {
@@ -170,8 +183,10 @@ export const adminService = {
         message = "El email ingresado es inválido"
       } else if (authError.code === "permission-denied") {
         message = "Permiso denegado: verifica las reglas de Firestore"
+      } else if (authError instanceof Error) {
+        message = authError.message
       } else {
-        message = authError.message || "Error al crear administrador"
+        message = String(authError) || "Error al crear administrador"
       }
 
       console.error("❌ Error en adminService.createAdmin:", authError)

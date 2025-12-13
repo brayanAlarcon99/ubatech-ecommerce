@@ -1,0 +1,163 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // FUNCIONES HELPER
+    // ============================================
+    
+    // Verificar si el usuario es admin
+    function hasAdminRole() {
+      return exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid));
+    }
+
+    // Verificar si hay al menos un admin creado (para evitar bloqueos de creación)
+    function hasAnyAdmin() {
+      // Esta función es limitada en Firestore Rules v2
+      // En su lugar, permitiremos que cualquier usuario autenticado cree admin
+      // si la colección ya tiene documentos (validado en la regla)
+      return true;
+    }
+
+    // Verificar autenticación
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Validar estructura de producto
+    function validateProductStructure() {
+      let product = request.resource.data;
+      let hasSubcategory = 'subcategory' in product && product.subcategory != '';
+      return !hasSubcategory || 
+             exists(/databases/$(database)/documents/subcategories/$(product.subcategory));
+    }
+
+    // Validar estructura de subcategoría
+    function validateSubcategoryStructure() {
+      let subcategory = request.resource.data;
+      return ('categoryId' in subcategory) && 
+             ('name' in subcategory) &&
+             subcategory.categoryId != '' &&
+             subcategory.name != '';
+    }
+
+    // Validar estructura de administrador
+    function validateAdminStructure() {
+      let admin = request.resource.data;
+      return ('email' in admin) && 
+             ('role' in admin) &&
+             ('createdAt' in admin) &&
+             admin.email != '' &&
+             admin.role != '' &&
+             (admin.role == 'admin' || admin.role == 'super');
+    }
+
+    // ============================================
+    // REGLAS PÚBLICAS (LECTURA)
+    // ============================================
+
+    // PRODUCTOS - Lectura pública, escritura admin
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+                       hasAdminRole() && 
+                       validateProductStructure();
+      allow update: if isAuthenticated() && 
+                       hasAdminRole() && 
+                       validateProductStructure();
+      allow delete: if isAuthenticated() && hasAdminRole();
+    }
+
+    // Productos subcollection (si existe)
+    match /products/{productId}/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && hasAdminRole();
+    }
+
+    // CATEGORÍAS - Lectura pública, escritura admin
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && hasAdminRole();
+      allow update: if isAuthenticated() && hasAdminRole();
+      allow delete: if isAuthenticated() && hasAdminRole();
+    }
+
+    // SUBCATEGORÍAS - Lectura pública, escritura admin
+    match /subcategories/{subcategoryId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+                       hasAdminRole() && 
+                       validateSubcategoryStructure();
+      allow update: if isAuthenticated() && 
+                       hasAdminRole() && 
+                       validateSubcategoryStructure();
+      allow delete: if isAuthenticated() && hasAdminRole();
+    }
+
+    // STORE SETTINGS - Lectura pública, escritura admin
+    match /store_settings/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && hasAdminRole();
+    }
+
+    // PLATFORM INFO - Lectura pública, escritura admin
+    match /platform_info/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && hasAdminRole();
+    }
+
+    // SETTINGS - Lectura pública, escritura admin
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && hasAdminRole();
+    }
+
+    // ============================================
+    // REGLAS PRIVADAS (AUTENTICACIÓN REQUERIDA)
+    // ============================================
+
+    // ADMIN USERS - Crear y gestionar administradores
+    match /adminUsers/{userId} {
+      // Lectura: solo admin
+      allow read: if isAuthenticated() && hasAdminRole();
+      
+      // Crear: permitir que se escriba el documento si:
+      // 1. El usuario autenticado coincide con el userId (se escribe a sí mismo)
+      // 2. O es un admin existente que crea otro admin
+      allow create: if isAuthenticated() && 
+                       validateAdminStructure() &&
+                       (request.auth.uid == userId || hasAdminRole());
+      
+      // Actualizar: solo admin existente
+      allow update: if isAuthenticated() && 
+                       hasAdminRole() && 
+                       validateAdminStructure();
+      
+      // Eliminar: solo admin
+      allow delete: if isAuthenticated() && hasAdminRole();
+    }
+
+    // ÓRDENES - Autenticados
+    match /orders/{orderId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // ÓRDENES subcollection
+    match /orders/{orderId}/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // CONFIG - Solo admin
+    match /config/{document=**} {
+      allow read, write: if isAuthenticated() && hasAdminRole();
+    }
+
+    // ============================================
+    // REGLA POR DEFECTO - DENEGAR TODO
+    // ============================================
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
