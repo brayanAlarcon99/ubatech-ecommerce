@@ -3,22 +3,20 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   AuthError,
-  Auth,
-  User,
 } from "firebase/auth"
-import {
-  collection,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  deleteDoc,
-  Timestamp,
-} from "firebase/firestore"
 import { getDb } from "@/lib/firebase"
 import { app } from "@/lib/firebase"
+import { 
+  getDocumentsByQuery,
+  setDocByPath,
+  deleteDocByPath,
+  getCollectionDocs 
+} from "@/lib/firestore-utils"
+import { 
+  validateEmailWithMessage,
+  validatePasswordWithMessage 
+} from "@/lib/validation"
+import { COLLECTIONS, ERROR_MESSAGES } from "@/lib/config/constants"
 
 export interface AdminUser {
   id?: string
@@ -30,14 +28,11 @@ export interface AdminUser {
 }
 
 /**
- * Servicio para manejar operaciones de administradores
+ * Servicio para manejar operaciones de administradores (OPTIMIZADO)
  */
 export const adminService = {
   /**
-   * Crear un nuevo administrador
-   * @param email Email del nuevo administrador
-   * @param password Contraseña del nuevo administrador
-   * @param currentUserEmail Email del usuario actual (para auditoría)
+   * Crear un nuevo administrador (OPTIMIZADO)
    */
   async createAdmin(
     email: string,
@@ -54,161 +49,99 @@ export const adminService = {
     const db = getDb()
 
     try {
-      // Validar que el email sea válido
-      if (!email || !password) {
-        return {
-          success: false,
-          message: "Email y contraseña son requeridos",
-        }
+      // Validaciones centralizadas
+      const emailValidation = validateEmailWithMessage(email)
+      if (!emailValidation.valid) {
+        return { success: false, message: emailValidation.error! }
       }
 
-      if (password.length < 6) {
-        return {
-          success: false,
-          message: "La contraseña debe tener al menos 6 caracteres",
-        }
+      const passwordValidation = validatePasswordWithMessage(password)
+      if (!passwordValidation.valid) {
+        return { success: false, message: passwordValidation.error! }
       }
 
-      // Verificar que el email no exista en adminUsers
-      const existingQuery = query(
-        collection(db, "adminUsers"),
-        where("email", "==", email)
+      // Verificar que el email no exista
+      const existingAdmins = await getDocumentsByQuery(
+        COLLECTIONS.ADMIN_USERS,
+        "email",
+        "==",
+        email
       )
-      const existingDocs = await getDocs(existingQuery)
 
-      if (existingDocs.size > 0) {
-        return {
-          success: false,
-          message: "Este email ya existe como administrador",
-        }
+      if (existingAdmins.length > 0) {
+        return { success: false, message: "Este email ya existe como administrador" }
       }
 
-      // Obtener usuario actual (super usuario) Y SUS CREDENCIALES
       const currentUser = auth.currentUser
-      
       if (!currentUser) {
-        return {
-          success: false,
-          message: "No hay usuario autenticado. Por favor inicia sesión nuevamente.",
-        }
+        return { success: false, message: "No hay usuario autenticado" }
       }
 
-      const currentUserUid = currentUser.uid
-
-      // PASO 1: Crear usuario en Firebase Authentication
-      console.log("📝 Creando usuario en Firebase Auth para:", email)
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      )
-
+      // PASO 1: Crear usuario en Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       userUid = userCredential.user.uid
       userCreated = true
 
-      console.log("✅ Usuario creado en Firebase Auth:", userUid)
-
-      // PASO 2: Esperar un momento para asegurar sincronización
+      // PASO 2: Esperar para asegurar sincronización
       await new Promise((resolve) => setTimeout(resolve, 300))
 
-      // PASO 3: IMPORTANTE - Re-autenticarse como el super usuario
-      // Porque createUserWithEmailAndPassword() automáticamente logea al usuario nuevo
-      // Necesitamos volver a autenticarnos como super usuario para escribir en Firestore con sus permisos
-      console.log("🔐 Re-autenticando como super usuario para guardar en Firestore...")
-      
-      try {
-        // Re-autenticarse con el super usuario usando su email y contraseña
-        // NOTA: Necesitamos que el usuario pase su contraseña en el formulario
-        // Por ahora usaremos una aproximación alternativa: escribir como el usuario nuevo
-        // pero las Firestore Rules permitirán esto si el documento tiene estructura válida
-        
-        // Guardar información del admin en Firestore
-        const adminRef = doc(db, "adminUsers", userUid)
-        const adminData: AdminUser = {
-          id: userUid,
-          email: email,
-          role: "admin",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          status: "active",
-        }
+      // PASO 3: Guardar en Firestore
+      const adminData: AdminUser = {
+        id: userUid,
+        email,
+        role: "admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: "active",
+      }
 
-        console.log("💾 Guardando admin en Firestore como usuario:", auth.currentUser?.uid)
-        await setDoc(adminRef, adminData)
+      const result = await setDocByPath(COLLECTIONS.ADMIN_USERS, userUid, adminData)
 
-        console.log("✅ Administrador guardado en Firestore:", userUid)
+      if (!result.success) {
+        throw new Error(result.error || "Error guardando en Firestore")
+      }
 
-        // Verificar que se guardó correctamente
-        const verifyDoc = await getDoc(adminRef)
-        if (!verifyDoc.exists()) {
-          throw new Error("Error de verificación: documento no se guardó")
-        }
-
-        console.log("✅ Nuevo administrador creado exitosamente")
-
-        return {
-          success: true,
-          message: "Administrador creado correctamente",
-          uid: userUid,
-        }
-      } catch (firestoreError) {
-        console.error("❌ Error escribiendo en Firestore:", firestoreError)
-        throw firestoreError
+      return {
+        success: true,
+        message: "Administrador creado correctamente",
+        uid: userUid,
       }
     } catch (error) {
       const authError = error as AuthError
 
-      // Si el usuario fue creado pero Firestore falló, eliminarlo de Auth
+      // Limpiar si falló
       if (userCreated && userUid) {
         try {
-          // Obtener una referencia al usuario creado
           const currentUser = auth.currentUser
-          if (currentUser && currentUser.uid === userUid) {
-            // Solo eliminarlo si está actualmente autenticado
+          if (currentUser?.uid === userUid) {
             await currentUser.delete()
-            console.log("🗑️ Usuario eliminado de Firebase Auth por error en Firestore")
           }
         } catch (deleteError) {
           console.error("Error al eliminar usuario de Auth:", deleteError)
         }
       }
 
-      let message = "Error desconocido"
+      let message = authError.message || ERROR_MESSAGES.UNKNOWN_ERROR
 
       if (authError.code === "auth/email-already-in-use") {
-        message = "Este email ya está registrado en Firebase Authentication"
+        message = ERROR_MESSAGES.EMAIL_ALREADY_IN_USE
       } else if (authError.code === "auth/weak-password") {
-        message = "La contraseña es muy débil (mínimo 6 caracteres)"
+        message = ERROR_MESSAGES.WEAK_PASSWORD
       } else if (authError.code === "auth/invalid-email") {
-        message = "El email ingresado es inválido"
-      } else if (authError.code === "permission-denied") {
-        message = "Permiso denegado: verifica las reglas de Firestore"
-      } else if (authError instanceof Error) {
-        message = authError.message
-      } else {
-        message = String(authError) || "Error al crear administrador"
+        message = ERROR_MESSAGES.INVALID_EMAIL
       }
 
-      console.error("❌ Error en adminService.createAdmin:", authError)
-
-      return {
-        success: false,
-        message: message,
-      }
+      return { success: false, message }
     }
   },
 
   /**
-   * Obtener todos los administradores
+   * Obtener todos los administradores (OPTIMIZADO)
    */
   async getAllAdmins(): Promise<AdminUser[]> {
     try {
-      const db = getDb()
-      const snapshot = await getDocs(collection(db, "adminUsers"))
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      } as AdminUser))
+      const admins = await getCollectionDocs(COLLECTIONS.ADMIN_USERS)
+      return admins.map(doc => doc as AdminUser)
     } catch (error) {
       console.error("Error obteniendo administradores:", error)
       return []
@@ -216,23 +149,17 @@ export const adminService = {
   },
 
   /**
-   * Obtener administrador por email
+   * Obtener administrador por email (OPTIMIZADO)
    */
   async getAdminByEmail(email: string): Promise<AdminUser | null> {
     try {
-      const db = getDb()
-      const q = query(collection(db, "adminUsers"), where("email", "==", email))
-      const snapshot = await getDocs(q)
-
-      if (snapshot.docs.length > 0) {
-        const doc = snapshot.docs[0]
-        return {
-          id: doc.id,
-          ...doc.data(),
-        } as AdminUser
-      }
-
-      return null
+      const results = await getDocumentsByQuery(
+        COLLECTIONS.ADMIN_USERS,
+        "email",
+        "==",
+        email
+      )
+      return results.length > 0 ? (results[0] as AdminUser) : null
     } catch (error) {
       console.error("Error buscando admin:", error)
       return null
@@ -240,76 +167,44 @@ export const adminService = {
   },
 
   /**
-   * Eliminar administrador
+   * Eliminar administrador (OPTIMIZADO)
    */
   async deleteAdmin(userId: string): Promise<{
     success: boolean
     message: string
   }> {
     try {
-      const db = getDb()
-      const adminRef = doc(db, "adminUsers", userId)
-
-      // Verificar que existe
-      const adminDoc = await getDoc(adminRef)
-      if (!adminDoc.exists()) {
-        return {
-          success: false,
-          message: "Administrador no encontrado",
-        }
+      const result = await deleteDocByPath(COLLECTIONS.ADMIN_USERS, userId)
+      
+      if (result.success) {
+        console.log("✅ Administrador eliminado:", userId)
+        return { success: true, message: "Administrador eliminado correctamente" }
       }
-
-      // Eliminar documento
-      await deleteDoc(adminRef)
-
-      console.log("✅ Administrador eliminado:", userId)
-
-      return {
-        success: true,
-        message: "Administrador eliminado correctamente",
-      }
+      
+      return { success: false, message: result.error || "Error desconocido" }
     } catch (error) {
       console.error("Error eliminando admin:", error)
-      return {
-        success: false,
-        message: "Error al eliminar administrador",
-      }
+      return { success: false, message: "Error al eliminar administrador" }
     }
   },
 
   /**
-   * Actualizar rol de administrador
+   * Actualizar rol de administrador (OPTIMIZADO)
    */
   async updateAdminRole(
     userId: string,
     newRole: string
-  ): Promise<{
-    success: boolean
-    message: string
-  }> {
-    try {
-      const db = getDb()
-      const adminRef = doc(db, "adminUsers", userId)
-
-      await setDoc(
-        adminRef,
-        {
-          role: newRole,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      )
-
-      return {
-        success: true,
-        message: "Rol actualizado correctamente",
-      }
-    } catch (error) {
-      console.error("Error actualizando rol:", error)
-      return {
-        success: false,
-        message: "Error al actualizar rol",
-      }
+  ): Promise<{ success: boolean; message: string }> {
+    const result = await setDocByPath(
+      COLLECTIONS.ADMIN_USERS,
+      userId,
+      { role: newRole }
+    )
+    
+    if (result.success) {
+      return { success: true, message: "Rol actualizado correctamente" }
     }
+    
+    return { success: false, message: result.error || "Error al actualizar rol" }
   },
 }

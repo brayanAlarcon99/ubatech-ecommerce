@@ -37,6 +37,12 @@ const config = {
         input: "hsl(var(--input) / <alpha-value>)",
         ring: "hsl(var(--ring) / <alpha-value>)",
       },
+      transitionDuration: {
+        '300': '300ms',
+      },
+      transitionTimingFunction: {
+        'in-out': 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
     },
   },
   darkMode: "class",

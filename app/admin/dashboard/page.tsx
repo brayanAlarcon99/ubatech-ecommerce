@@ -14,9 +14,11 @@ import UsersManager from "@/components/admin/users-manager"
 import OrdersManager from "@/components/admin/orders-manager"
 import Analytics from "@/components/admin/analytics"
 import Settings from "@/components/admin/settings"
+import StoresSettings from "@/components/admin/stores-settings"
 import { useAdminInactivity } from "@/hooks/use-admin-inactivity"
 import { getInactivityTimeout } from "@/lib/admin-auth"
 import { useToast } from "@/hooks/use-toast"
+import ScrollToTop from "@/components/scroll-to-top"
 
 export default function AdminDashboard() {
   const [user, setUser] = useState<import("firebase/auth").User | null>(null)
@@ -163,6 +165,17 @@ export default function AdminDashboard() {
           {activeTab === "products" && <ProductsManager />}
           {activeTab === "categories" && <CategoriesManager />}
           {activeTab === "orders" && <OrdersManager />}
+          {activeTab === "stores" && (
+            (role === "super" || role === "admin") ? (
+              <StoresSettings />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-gray-500">
+                  <p className="text-lg">No tienes permiso para acceder a esta sección</p>
+                </div>
+              </div>
+            )
+          )}
           {activeTab === "users" && (
             role === "super" ? (
               <UsersManager />
@@ -202,6 +215,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+      <ScrollToTop />
     </div>
   )
 }

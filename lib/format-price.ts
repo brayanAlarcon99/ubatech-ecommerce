@@ -1,4 +1,44 @@
 /**
+ * Parsea un string de precio a número
+ * Maneja múltiples formatos: "6000", "6.000", "1.234.567", "299.99", etc.
+ * @param priceString String con el precio
+ * @returns Número parseado o 0 si es inválido
+ * @internal Función privada, usada por ensureNumberPrice y sanitizePriceInput
+ */
+function parsePriceString(priceString: string): number {
+  if (!priceString || priceString.trim() === '') {
+    return 0;
+  }
+  
+  let cleaned = priceString.trim();
+  
+  // Si contiene puntos, asumir que podrían ser separadores de miles
+  if (cleaned.includes('.')) {
+    const dotCount = (cleaned.match(/\./g) || []).length;
+    
+    // Si hay múltiples puntos O un punto en los últimos 3 caracteres = separador de miles
+    if (dotCount > 1 || (dotCount === 1 && cleaned.lastIndexOf('.') > cleaned.length - 4)) {
+      cleaned = cleaned.replace(/\./g, '');
+    } else {
+      // Un punto pero no al final = separador decimal
+      cleaned = cleaned.replace(',', '.');
+    }
+  }
+  
+  // Reemplazar coma por punto para decimales
+  cleaned = cleaned.replace(',', '.');
+  
+  // Asegurar que solo haya un punto decimal
+  const parts = cleaned.split('.');
+  if (parts.length > 2) {
+    cleaned = parts[0] + '.' + parts.slice(1).join('');
+  }
+  
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100;
+}
+
+/**
  * Asegura que el precio sea un número válido
  * Si es string, intenta convertirlo, si no es válido retorna 0
  * Maneja correctamente: "6000", "6.000", "1.234.567", "299.99", etc.
@@ -9,37 +49,7 @@ export function ensureNumberPrice(price: any): number {
   }
   
   if (typeof price === 'string') {
-    // Usar la misma lógica que sanitizePriceInput para consistencia
-    if (!price || price.trim() === '') {
-      return 0;
-    }
-    
-    let cleaned = price.trim();
-    
-    // Si contiene puntos, asumir que podrían ser separadores de miles
-    if (cleaned.includes('.')) {
-      const dotCount = (cleaned.match(/\./g) || []).length;
-      
-      // Si hay múltiples puntos O un punto en los últimos 3 caracteres = separador de miles
-      if (dotCount > 1 || (dotCount === 1 && cleaned.lastIndexOf('.') > cleaned.length - 4)) {
-        cleaned = cleaned.replace(/\./g, '');
-      } else {
-        // Un punto pero no al final = separador decimal
-        cleaned = cleaned.replace(',', '.');
-      }
-    }
-    
-    // Reemplazar coma por punto para decimales
-    cleaned = cleaned.replace(',', '.');
-    
-    // Asegurar que solo haya un punto decimal
-    const parts = cleaned.split('.');
-    if (parts.length > 2) {
-      cleaned = parts[0] + '.' + parts.slice(1).join('');
-    }
-    
-    const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100;
+    return parsePriceString(price);
   }
   
   return 0;
@@ -80,41 +90,7 @@ export function formatPriceWithCurrency(price: number | string, currency: string
  * Convierte "1.234.567" a "1234567" antes de guardar en BD
  */
 export function sanitizePriceInput(priceString: string): number {
-  if (!priceString || priceString.trim() === '') {
-    return 0;
-  }
-  
-  // Eliminar espacios
-  let cleaned = priceString.trim();
-  
-  // Si contiene puntos, asumir que podrían ser separadores de miles
-  // Ejemplo: "1.234.567" o "6.000" 
-  if (cleaned.includes('.')) {
-    // Contar los puntos
-    const dotCount = (cleaned.match(/\./g) || []).length;
-    
-    // Si hay múltiples puntos, probablemente sean separadores de miles
-    if (dotCount > 1 || (dotCount === 1 && cleaned.lastIndexOf('.') > cleaned.length - 4)) {
-      // Múltiples puntos O un punto en los últimos 3 caracteres = separador de miles
-      cleaned = cleaned.replace(/\./g, '');
-    } else {
-      // Un punto pero no al final = separador decimal, reemplazar coma si existe
-      cleaned = cleaned.replace(',', '.');
-    }
-  }
-  
-  // Reemplazar coma por punto para decimales
-  cleaned = cleaned.replace(',', '.');
-  
-  // Asegurar que solo haya un punto decimal
-  const parts = cleaned.split('.');
-  if (parts.length > 2) {
-    // Si hay múltiples puntos después del reemplazo, solo tomar la parte entera y la primera decimal
-    cleaned = parts[0] + '.' + parts.slice(1).join('');
-  }
-  
-  const parsed = parseFloat(cleaned);
-  return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100;
+  return parsePriceString(priceString);
 }
 
 /**
@@ -128,4 +104,27 @@ export function normalizeProductPrice(product: any): any {
     ...product,
     price: ensureNumberPrice(product.price)
   };
+}
+
+/**
+ * Formatea un número de teléfono para WhatsApp
+ * Elimina caracteres especiales y espacios
+ * @param phone Número de teléfono
+ * @returns Número formateado para WhatsApp
+ */
+export function formatPhoneForWhatsapp(phone: string): string {
+  // Eliminar todos los caracteres que no sean números
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Si no comienza con 54 (código de Argentina), agregarlo
+  if (!cleaned.startsWith('54')) {
+    // Si comienza con 9, es un número nacional que necesita 54
+    if (cleaned.startsWith('9')) {
+      return '54' + cleaned;
+    }
+    // Si no, asumir que ya tiene el código
+    return cleaned;
+  }
+  
+  return cleaned;
 }

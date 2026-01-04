@@ -12,11 +12,16 @@ export default function AdminSidebar({ activeTab, onTabChange, userRole }: Admin
     { id: "products", label: "Productos", icon: "📦" },
     { id: "categories", label: "Categorías", icon: "🏷️" },
     { id: "orders", label: "Pedidos", icon: "📋" },
+    { id: "stores", label: "Tiendas", icon: "🏪", requiredRoles: ["admin", "super"] },
     { id: "users", label: "Administradores", icon: "👥", requiredRole: "super" },
     { id: "settings", label: "Configuración", icon: "⚙️" },
   ]
 
-  const tabs = allTabs.filter((tab) => !tab.requiredRole || userRole === tab.requiredRole)
+  const tabs = allTabs.filter((tab) => {
+    if (!tab.requiredRole && !tab.requiredRoles) return true
+    if (tab.requiredRoles) return tab.requiredRoles.includes(userRole || "")
+    return userRole === tab.requiredRole
+  })
 
   return (
     <aside
