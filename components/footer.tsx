@@ -84,7 +84,7 @@ export default function Footer({ storeId = 'ubatech', hideAboutUs = false, hideC
                 </h3>
                 <div className="space-y-1 sm:space-y-2 text-gray-600 text-xs sm:text-sm">
                   <a 
-                    href="https://www.google.com/maps/search/Cl.+10+%23+7-39,+Ubat%C3%A9,+Villa+de+San+Diego+de+Ubat%C3%A9,+Cundinamarca+855P%2BRP"
+                    href="https://www.google.com/maps/place/Djcelutecnico/@5.3091793,-73.8131533,3a,75y,157.32h,105.82t/data=!3m7!1e1!3m5!1slHSlJIsSDnObsjD4hXK_UA!2e0!6shttps:%2F%2Fstreetviewpixels-pa.googleapis.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D-15.819999999999993%26panoid%3DlHSlJIsSDnObsjD4hXK_UA%26yaw%3D157.32!7i16384!8i8192!4m17!1m9!3m8!1s0x8e40385c7a9fe659:0x214002c0c575d2!2sCra.+7+%23+9-72,+Ubat%C3%A9,+Villa+de+San+Diego+de+Ubat%C3%A9,+Cundinamarca!3b1!8m2!3d5.309132!4d-73.813137!10e5!16s%2Fg%2F11m62rzplt!3m6!1s0x8e4039f96bfe3f27:0x32c874342d4b68da!8m2!3d5.3091399!4d-73.8131219!10e5!16s%2Fg%2F11h129n8_7?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline hover:text-blue-800 transition-colors hover:cursor-pointer block"
