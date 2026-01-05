@@ -34,8 +34,8 @@ export default function CheckoutPage() {
   useEffect(() => {
     const loadWhatsAppNumber = async () => {
       try {
-        // Usar API en lugar de acceso directo a Firestore
-        const response = await fetch('/api/settings?t=' + Date.now(), {
+        // Usar API con parámetro store para obtener configuración correcta
+        const response = await fetch(`/api/settings?store=${store}&t=${Date.now()}`, {
           method: 'GET',
           cache: 'no-store',
           headers: {
@@ -45,7 +45,7 @@ export default function CheckoutPage() {
 
         if (response.ok) {
           const settings = await response.json();
-          const rawNumber = settings.storeWhatsApp || settings.storePhone || '';
+          const rawNumber = settings.storeWhatsApp || '';
 
           console.log('Raw WhatsApp number from settings:', rawNumber);
 

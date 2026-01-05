@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { getDb } from "@/lib/firebase"
 import { doc, getDoc } from "firebase/firestore"
 
-const SETTINGS_COLLECTION = "store_settings"
-const SETTINGS_DOC = "store_settings"
-
 const STORE_CONFIGS = {
   ubatech: {
     storeName: "Ubatech+Pro",
@@ -46,6 +43,7 @@ export async function GET(request: NextRequest) {
       db = getDb()
     } catch (dbError) {
       console.error("[API Settings] Firestore not available:", dbError)
+      console.log("[API Settings] Retornando configuración por defecto para tienda:", store)
       // Return default settings if Firestore is not available
       return NextResponse.json(storeConfig, {
         status: 200,
@@ -53,8 +51,8 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Obtener el documento "store_settings" de la colección "store_settings"
-    const docRef = doc(db, SETTINGS_COLLECTION, SETTINGS_DOC)
+    // Obtener el documento de la tienda específica (como lo guarda el admin)
+    const docRef = doc(db, 'stores', store)
     const docSnapshot = await getDoc(docRef)
 
     if (docSnapshot.exists()) {
@@ -67,11 +65,18 @@ export async function GET(request: NextRequest) {
         storeName: storeConfig.storeName, // Preservar el nombre específico de la tienda
       }
       
+      console.log("[API Settings] Configuración cargada para tienda:", store, {
+        storeWhatsApp: mergedData.storeWhatsApp,
+        storePhone: mergedData.storePhone,
+      })
+      
       return NextResponse.json(mergedData, {
+        status: 200,
         headers: CACHE_HEADERS,
       })
     } else {
       // Retornar valores por defecto si no existe
+      console.log("[API Settings] Documento no encontrado, retornando valores por defecto para tienda:", store)
       return NextResponse.json(storeConfig, {
         status: 200,
         headers: CACHE_HEADERS,

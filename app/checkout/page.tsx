@@ -37,7 +37,7 @@ export default function CheckoutPage() {
 
         if (response.ok) {
           const settings = await response.json()
-          const rawNumber = settings.storeWhatsApp || settings.storePhone || ""
+          const rawNumber = settings.storeWhatsApp || ""
 
           console.log("Raw WhatsApp number from settings:", rawNumber)
 

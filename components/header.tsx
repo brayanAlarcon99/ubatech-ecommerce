@@ -67,9 +67,9 @@ export default function Header() {
           <Image 
             src={currentStore === 'djcelutecnico' ? "/logo-djcelutecnico.jpg" : "/logo-ubatech.png"} 
             alt={settings.storeName} 
-            width={currentStore === 'djcelutecnico' ? 50 : 40} 
-            height={currentStore === 'djcelutecnico' ? 50 : 40}
-            className="object-contain sm:w-[60px] sm:h-[60px] lg:w-[75px] lg:h-[75px]" 
+            width={currentStore === 'djcelutecnico' ? 65 : 50} 
+            height={currentStore === 'djcelutecnico' ? 65 : 50}
+            className="object-contain sm:w-[80px] sm:h-[80px] lg:w-[100px] lg:h-[100px]" 
           />
           <div className="hidden sm:block">
             <h1 className="text-sm sm:text-lg font-bold truncate" style={{ color: currentStore === 'djcelutecnico' ? '#000000' : "var(--primary-dark)" }}>
