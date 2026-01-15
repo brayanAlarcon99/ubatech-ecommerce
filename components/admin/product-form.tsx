@@ -31,7 +31,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     price: product?.price || 0,
     category: product?.category || "",
     subcategory: product?.subcategory || "",
-    stock: product?.stock || 0,
+    stock: product?.stock || { djcelutecnico: 0, ubatech: 0 },
     image: product?.image || "",
     sku: product?.sku || "",
     details: product?.details || "",
@@ -122,25 +122,23 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target
-    
-    if (name === "price" || name === "stock") {
-      if (name === "price") {
-        // Para el precio, usar sanitizePriceInput para limpiar puntos de mil
-        // permitir que el usuario digite con puntos de mil y se conviertan correctamente
-        const numValue = sanitizePriceInput(value);
-        setFormData((prev) => ({
-          ...prev,
-          [name]: numValue,
-        }))
-      } else {
-        // Para stock, convertir a número entero
-        const numValue = parseFloat(value);
-        const finalValue = isNaN(numValue) ? 0 : Math.floor(numValue);
-        setFormData((prev) => ({
-          ...prev,
-          [name]: finalValue,
-        }))
-      }
+    if (name === "price") {
+      const numValue = sanitizePriceInput(value);
+      setFormData((prev) => ({
+        ...prev,
+        price: numValue,
+      }))
+    } else if (name.startsWith("stock_")) {
+      const storeId = name.replace("stock_", "");
+      const numValue = parseFloat(value);
+      const finalValue = isNaN(numValue) ? 0 : Math.floor(numValue);
+      setFormData((prev) => ({
+        ...prev,
+        stock: {
+          ...prev.stock,
+          [storeId]: finalValue,
+        },
+      }))
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -247,7 +245,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       const dataToSave = {
         ...formData,
         price: Math.round(formData.price * 100) / 100, // Redondea a 2 decimales
-        stock: Math.floor(formData.stock), // Stock debe ser un entero
+        stock: {
+          djcelutecnico: Math.floor(formData.stock.djcelutecnico || 0),
+          ubatech: Math.floor(formData.stock.ubatech || 0),
+        },
       }
       onSave(dataToSave)
     } catch (error) {
@@ -340,16 +341,32 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-black" style={{ color: "var(--primary)" }}>
-                  Stock
+                  Stock por tienda
                 </label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                  required
-                />
+                <div className="flex flex-col gap-2">
+                  <div>
+                    <span className="text-xs text-gray-600">DJCELUTECNICO</span>
+                    <input
+                      type="number"
+                      name="stock_djcelutecnico"
+                      value={formData.stock.djcelutecnico || 0}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-600">Ubatech+Pro</span>
+                    <input
+                      type="number"
+                      name="stock_ubatech"
+                      value={formData.stock.ubatech || 0}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

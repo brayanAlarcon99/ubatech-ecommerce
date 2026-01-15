@@ -11,7 +11,8 @@ export interface CartItem {
   quantity: number
   category?: string
   description?: string
-  stock?: number
+  stock?: { [storeId: string]: number } | number
+  image?: string
 }
 
 interface CartContextType {

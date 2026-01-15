@@ -5,7 +5,9 @@ export interface Product {
   price: number
   category: string
   subcategory?: string
-  stock: number
+  stock: {
+    [storeId: string]: number
+  }
   image?: string
   sku?: string
   details?: string

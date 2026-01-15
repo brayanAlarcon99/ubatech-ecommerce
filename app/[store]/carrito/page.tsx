@@ -63,8 +63,17 @@ export default function CartPage() {
               {cart.map((item) => (
                 <div
                   key={item.id}
-                  className="border rounded-lg p-4 flex items-center justify-between bg-white"
+                  className="border rounded-lg p-4 flex items-center justify-between bg-white gap-4"
                 >
+                  {item.image && (
+                    <div className="flex-shrink-0">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                      />
+                    </div>
+                  )}
                   <div className="flex-1">
                     <h3 className="font-bold mb-1" style={{ color: getPrimaryColor(store) }}>
                       {item.name}

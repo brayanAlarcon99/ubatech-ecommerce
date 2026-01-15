@@ -7,11 +7,12 @@ import { StoreProvider } from "@/lib/context/StoreContext"
 
 const inter = Inter({ subsets: ["latin"] })
 
+export const viewport = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes'
+
 export const metadata = {
   title: "Ubatech+Pro - Confianza & Seguridad",
   description: "Tienda online de Ubatech+Pro con los mejores productos tech",
   generator: 'v0.app',
-  viewport: 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes',
   icons: {
     icon: '/robot-favicon.svg',
     apple: '/robot-favicon.svg',

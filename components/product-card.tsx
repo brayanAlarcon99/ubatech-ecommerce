@@ -10,29 +10,51 @@ import { formatPriceWithCurrency } from "@/lib/format-price"
 
 interface ProductCardProps {
   product: Product
+  storeId?: string
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
   const [quantity, setQuantity] = useState(1)
   const [showModal, setShowModal] = useState(false)
   const [categoryName, setCategoryName] = useState<string>("")
   const [subcategoryName, setSubcategoryName] = useState<string>("")
   const [loading, setLoading] = useState(false)
+  const [liveStock, setLiveStock] = useState<number>(product.stock?.[storeId] ?? 0)
   const { addToCart } = useCart()
 
-  // Cargar nombres de categoría y subcategoría
   useEffect(() => {
     if (product.category) {
       loadCategoryAndSubcategory()
     }
   }, [product.category, product.subcategory])
 
+  useEffect(() => {
+    loadLiveStock()
+    const interval = setInterval(() => {
+      loadLiveStock()
+    }, 3000) // Sincronizar cada 3 segundos
+    return () => clearInterval(interval)
+  }, [product.id, storeId])
+
+  const loadLiveStock = async () => {
+    try {
+      const db = getDb()
+      const productRef = doc(db, "products", product.id)
+      const productSnap = await getDoc(productRef)
+      if (productSnap.exists()) {
+        const data = productSnap.data() as Product
+        setLiveStock(data.stock?.[storeId] ?? 0)
+      }
+    } catch (error) {
+      console.error("Error loading live stock:", error)
+    }
+  }
+
   const loadCategoryAndSubcategory = async () => {
     setLoading(true)
     try {
       const db = getDb()
 
-      // Cargar categoría
       if (product.category) {
         const categoryRef = doc(db, "categories", product.category)
         const categorySnap = await getDoc(categoryRef)
@@ -43,20 +65,17 @@ export default function ProductCard({ product }: ProductCardProps) {
         }
       }
 
-      // Cargar subcategoría
       if (product.subcategory) {
         const subcategoryRef = doc(db, "subcategories", product.subcategory)
         const subcategorySnap = await getDoc(subcategoryRef)
         if (subcategorySnap.exists()) {
-          setSubcategoryName(subcategorySnap.data().name || product.subcategory)
+          setSubcategoryName(subcategorySnap.data().name || "")
         } else {
-          setSubcategoryName(product.subcategory)
+          setSubcategoryName(product.subcategory || "")
         }
+      } else {
+        setSubcategoryName(product.subcategory || "")
       }
-    } catch (error) {
-      console.error("Error cargando categoría/subcategoría:", error)
-      setCategoryName(product.category)
-      setSubcategoryName(product.subcategory || "")
     } finally {
       setLoading(false)
     }
@@ -69,14 +88,13 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <>
-      {/* Tarjeta simplificada - Solo nombre y precio */}
       <div
         onClick={() => setShowModal(true)}
         className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer hover:border-gray-300 flex flex-col h-full"
+        style={{ backgroundColor: '#fff' }}
       >
-        {/* Imagen del producto */}
         {product.image ? (
-          <div className="w-full h-24 sm:h-40 bg-gray-100 flex items-center justify-center flex-shrink-0">
+          <div className="w-full h-24 sm:h-40 bg-white flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#fff' }}>
             <img
               src={product.image}
               alt={product.name}
@@ -92,42 +110,36 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
-        <div className="p-2 sm:p-3 flex-grow flex flex-col">
-          {/* Nombre del producto */}
+        <div className="p-2 sm:p-3 flex-grow flex flex-col" style={{ backgroundColor: '#fff' }}>
           <h3 className="font-bold text-xs sm:text-sm line-clamp-2" style={{ color: "var(--primary-dark)" }}>
             {product.name}
           </h3>
 
-          {/* Detalles Adicionales */}
           {product.details && (
             <div className="text-[10px] sm:text-xs text-gray-700 mt-1 font-medium line-clamp-1">
               {product.details}
             </div>
           )}
 
-          {/* Detalle (descripción) */}
           <div className="text-[10px] sm:text-xs text-gray-600 mt-1 sm:mt-2 line-clamp-1 sm:line-clamp-2 flex-grow">
             {product.description || "Sin descripción"}
           </div>
 
-          {/* Categoría */}
           <div className="text-[9px] sm:text-xs text-gray-600 mt-1 line-clamp-1">
             {categoryName || product.category}
             {subcategoryName && ` - ${subcategoryName}`}
           </div>
 
-          {/* Valor (precio) */}
           <div className="flex items-center justify-between mt-1 sm:mt-2">
             <span className="text-sm sm:text-lg font-bold" style={{ color: "var(--accent-green)" }}>
               {formatPriceWithCurrency(product.price)}
             </span>
           </div>
 
-          {/* Stock */}
           <div className="mt-1 sm:mt-2 pt-1 sm:pt-2 border-t border-gray-200">
-            {product.stock > 0 ? (
+            {liveStock > 0 ? (
               <span className="text-[9px] sm:text-xs font-semibold" style={{ color: "var(--accent-green)" }}>
-                Disponible
+                Disponible: {liveStock}
               </span>
             ) : (
               <span className="text-[9px] sm:text-xs font-semibold text-red-600">
@@ -138,11 +150,9 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
       </div>
 
-      {/* Modal con información completa del producto */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header del modal */}
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#fff' }}>
             <div className="flex justify-between items-center p-3 sm:p-6 border-b border-gray-200 sticky top-0 bg-white">
               <h2 className="text-lg sm:text-2xl font-bold" style={{ color: "var(--primary-dark)" }}>
                 Detalles del Producto
@@ -155,11 +165,9 @@ export default function ProductCard({ product }: ProductCardProps) {
               </button>
             </div>
 
-            {/* Contenido del modal */}
             <div className="p-3 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                {/* Imagen */}
-                <div className="flex items-center justify-center">
+                <div className="flex items-center justify-center bg-white rounded-lg p-4" style={{ backgroundColor: '#fff' }}>
                   {product.image ? (
                     <img
                       src={product.image}
@@ -176,7 +184,6 @@ export default function ProductCard({ product }: ProductCardProps) {
                   )}
                 </div>
 
-                {/* Información */}
                 <div className="flex flex-col gap-3 sm:gap-4">
                   <div>
                     <h3 className="text-xl sm:text-3xl font-bold" style={{ color: "var(--primary-dark)" }}>
@@ -202,7 +209,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                     </div>
                     {product.subcategory && (
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-2">
-                        <span className="text-gray-700 font-semibold text-sm">Subcategoría:</span>
+                        <span className="text-gray-700 font-semibold text-sm">Marca:</span>
                         <span className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium text-white w-fit" style={{ backgroundColor: "var(--primary)" }}>
                           {loading ? "Cargando..." : subcategoryName || product.subcategory}
                         </span>
@@ -216,14 +223,13 @@ export default function ProductCard({ product }: ProductCardProps) {
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
                       <span className="text-gray-700 font-semibold text-sm">Stock disponible:</span>
-                      <span className="text-base sm:text-lg font-bold" style={{ color: product.stock > 0 ? "var(--accent-green)" : "#ef4444" }}>
-                        {product.stock > 0 ? `${product.stock} unidades` : "Agotado"}
+                      <span className="text-base sm:text-lg font-bold" style={{ color: liveStock > 0 ? "var(--accent-green)" : "#ef4444" }}>
+                        {liveStock > 0 ? `${liveStock} unidades` : "Agotado"}
                       </span>
                     </div>
                   </div>
 
-                  {/* Selector de cantidad y botón agregar */}
-                  {product.stock > 0 && (
+                  {liveStock > 0 && (
                     <div className="border-t border-gray-200 pt-3 sm:pt-4 space-y-3 sm:space-y-4">
                       <div className="flex items-center gap-2">
                         <button
@@ -234,7 +240,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                         </button>
                         <span className="flex-1 text-center font-semibold text-sm sm:text-base">{quantity}</span>
                         <button
-                          onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                          onClick={() => setQuantity(Math.min(liveStock, quantity + 1))}
                           className="p-1 sm:p-2 rounded-lg border border-gray-300 hover:bg-gray-100"
                         >
                           <Plus size={14} className="sm:w-[16px] sm:h-[16px]" />
@@ -263,3 +269,5 @@ export default function ProductCard({ product }: ProductCardProps) {
     </>
   )
 }
+
+export default ProductCard;

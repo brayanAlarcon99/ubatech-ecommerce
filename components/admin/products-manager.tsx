@@ -11,8 +11,13 @@ import { formatPriceWithCurrency, normalizeProductPrice } from "@/lib/format-pri
 import { generateOutOfStockPDF } from "@/lib/pdf-generator"
 import { Download } from "lucide-react"
 
-export default function ProductsManager() {
+function ProductsManager() {
   const [products, setProducts] = useState<Product[]>([])
+  const [stores] = useState([
+    { id: "djcelutecnico", name: "DJCELUTECNICO" },
+    { id: "ubatech", name: "Ubatech+Pro" },
+  ])
+  const [selectedStore, setSelectedStore] = useState<string>("djcelutecnico")
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([])
   const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map())
   const [subcategoriesMap, setSubcategoriesMap] = useState<Map<string, Subcategory[]>>(new Map())
@@ -23,6 +28,8 @@ export default function ProductsManager() {
   const [error, setError] = useState<string | null>(null)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [searchTerm, setSearchTerm] = useState<string>("")
+  const [showStockPanel, setShowStockPanel] = useState<{ open: boolean, product: Product | null }>({ open: false, product: null })
+  const [stockInput, setStockInput] = useState({ tienda: "djcelutecnico", cantidad: 0 })
 
   useEffect(() => {
     loadData()
@@ -31,16 +38,38 @@ export default function ProductsManager() {
   async function handleDownloadOutOfStockPDF() {
     try {
       setDownloadingPDF(true)
-      const outOfStockProducts = products.filter((p) => p.stock === 0)
       
-      if (outOfStockProducts.length === 0) {
+      // Obtener productos que no tienen stock en ninguna tienda
+      const allOutOfStockProducts = products.filter((p) => {
+        const dj = p.stock?.djcelutecnico ?? 0
+        const uba = p.stock?.ubatech ?? 0
+        return dj === 0 || uba === 0
+      })
+      
+      if (allOutOfStockProducts.length === 0) {
         alert("No hay productos fuera de stock para descargar")
         return
       }
 
-      await generateOutOfStockPDF(outOfStockProducts, categoriesMap, {
-        fileName: `Productos_Fuera_de_Stock_${new Date().getTime()}.pdf`,
-        title: "Reporte de Productos Fuera de Stock",
+      // Crear mapa de tiendas sin stock por producto
+      const outOfStockByProduct = new Map<string, string[]>()
+      allOutOfStockProducts.forEach((p) => {
+        const storesWithoutStock: string[] = []
+        if ((p.stock?.djcelutecnico ?? 0) === 0) {
+          storesWithoutStock.push("DJCELUTECNICO")
+        }
+        if ((p.stock?.ubatech ?? 0) === 0) {
+          storesWithoutStock.push("Ubatech+Pro")
+        }
+        outOfStockByProduct.set(p.id, storesWithoutStock)
+      })
+
+      const storesText = selectedStore === "all" ? "Todas las Tiendas" : selectedStore
+      
+      await generateOutOfStockPDF(allOutOfStockProducts, categoriesMap, {
+        fileName: `Productos_Fuera_de_Stock_${storesText}_${new Date().getTime()}.pdf`,
+        title: `Reporte de Productos Fuera de Stock (${storesText})`,
+        outOfStockByProduct
       })
     } catch (error) {
       console.error("[ProductsManager] Error downloading PDF:", error)
@@ -65,28 +94,23 @@ export default function ProductsManager() {
         ...doc.data(),
       })) as Product[]
 
-      // Normalizar precios para asegurar que sean números, no strings
       const prodsWithNormalizedPrices = prods.map(normalizeProductPrice)
 
-      // Crear array de categorías con ID y nombre
       const cats = categoriesSnapshot.docs.map((doc) => ({
         id: doc.id,
         name: doc.data().name,
       }))
       setCategories(cats)
 
-      // Crear mapa de ID -> nombre de categoría
       const catMap = new Map<string, string>()
       for (const catDoc of categoriesSnapshot.docs) {
         catMap.set(catDoc.id, catDoc.data().name)
       }
       setCategoriesMap(catMap)
 
-      // Normalizar productos para asegurar que tengan IDs de categoría válidos
       const normalizedProds = normalizeProducts(prodsWithNormalizedPrices, catMap)
       setProducts(normalizedProds)
 
-      // Cargar subcategorías para cada categoría
       const subMap = new Map<string, Subcategory[]>()
       for (const catDoc of categoriesSnapshot.docs) {
         const subs = await getSubcategoriesByCategory(catDoc.id)
@@ -116,8 +140,6 @@ export default function ProductsManager() {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       console.error("[ProductsManager] Error saving product:", error)
-      
-      // Propagar el error al formulario
       throw error
     }
   }
@@ -145,6 +167,134 @@ export default function ProductsManager() {
 
   return (
     <div className="space-y-6">
+      {/* Stock Panel Flotante */}
+      {showStockPanel.open && showStockPanel.product && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => {
+          setShowStockPanel({ open: false, product: null });
+          setStockInput({ tienda: "djcelutecnico", cantidad: 0 });
+        }}>
+          <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold mb-8 text-center text-black">Agregar Stock</h2>
+            <p className="mb-6 text-center text-gray-600 font-semibold">Producto: <span className="text-black">{showStockPanel.product.name}</span></p>
+            
+            {/* Sección Tienda 1: UBATECH */}
+            <div className="mb-8 pb-8 border-b border-gray-300">
+              <h3 className="text-lg font-bold text-black mb-4">Tienda UBATECH</h3>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad a agregar</label>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setStockInput(s => ({ ...s, tienda: "ubatech", cantidad: Math.max(0, s.cantidad - 1) }))}
+                      className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStockInput(s => ({ ...s, tienda: "ubatech", cantidad: s.cantidad + 1 }))}
+                      className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    className="flex-1 px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-black text-center font-semibold text-sm sm:text-lg"
+                    placeholder="0"
+                    value={stockInput.tienda === "ubatech" ? stockInput.cantidad : 0}
+                    min={0}
+                    onChange={e => setStockInput(s => ({ ...s, tienda: "ubatech", cantidad: parseInt(e.target.value) || 0 }))}
+                  />
+                </div>
+                <button
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors"
+                  onClick={async () => {
+                    if (!showStockPanel.product || stockInput.cantidad < 1) return;
+                    const db = getDb();
+                    const prodRef = doc(db, "products", showStockPanel.product.id);
+                    const newStock = {
+                      ...showStockPanel.product.stock,
+                      ubatech: (showStockPanel.product.stock?.ubatech ?? 0) + stockInput.cantidad
+                    };
+                    await updateDoc(prodRef, { stock: newStock });
+                    setStockInput({ tienda: "djcelutecnico", cantidad: 0 });
+                    await loadData();
+                  }}
+                  disabled={stockInput.tienda !== "ubatech" || stockInput.cantidad < 1}
+                >
+                  Agregar Stock
+                </button>
+              </div>
+            </div>
+
+            {/* Sección Tienda 2: DJCELUTECNICO */}
+            <div className="mb-8 pb-8">
+              <h3 className="text-lg font-bold text-black mb-4">Tienda DJCELUTECNICO</h3>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad a agregar</label>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setStockInput(s => ({ ...s, tienda: "djcelutecnico", cantidad: Math.max(0, s.cantidad - 1) }))}
+                      className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStockInput(s => ({ ...s, tienda: "djcelutecnico", cantidad: s.cantidad + 1 }))}
+                      className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    className="flex-1 px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-black text-center font-semibold text-sm sm:text-lg"
+                    placeholder="0"
+                    value={stockInput.tienda === "djcelutecnico" ? stockInput.cantidad : 0}
+                    min={0}
+                    onChange={e => setStockInput(s => ({ ...s, tienda: "djcelutecnico", cantidad: parseInt(e.target.value) || 0 }))}
+                  />
+                </div>
+                <button
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors"
+                  onClick={async () => {
+                    if (!showStockPanel.product || stockInput.cantidad < 1) return;
+                    const db = getDb();
+                    const prodRef = doc(db, "products", showStockPanel.product.id);
+                    const newStock = {
+                      ...showStockPanel.product.stock,
+                      djcelutecnico: (showStockPanel.product.stock?.djcelutecnico ?? 0) + stockInput.cantidad
+                    };
+                    await updateDoc(prodRef, { stock: newStock });
+                    setStockInput({ tienda: "djcelutecnico", cantidad: 0 });
+                    await loadData();
+                  }}
+                  disabled={stockInput.tienda !== "djcelutecnico" || stockInput.cantidad < 1}
+                >
+                  Agregar Stock
+                </button>
+              </div>
+            </div>
+
+            {/* Botón Cerrar */}
+            <button
+              className="w-full px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold transition-colors"
+              onClick={() => {
+                setShowStockPanel({ open: false, product: null });
+                setStockInput({ tienda: "djcelutecnico", cantidad: 0 });
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <p className="font-semibold">Error al cargar productos:</p>
@@ -152,80 +302,75 @@ export default function ProductsManager() {
         </div>
       )}
 
-      {/* Encabezado y buscador sticky */}
-      <div className="sticky top-0 z-40 bg-gradient-to-b from-[#f8fafc] to-[#f8fafc] pb-3 -mx-8 px-8 pt-0 -mt-30" style={{ top: "-32px" }}>
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold" style={{ color: "var(--primary-dark)" }}>
-            Gestión de Productos
-          </h1>
-          <div className="flex gap-2 items-center">
-            <input
-              type="text"
-              placeholder="🔎 Buscar productos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 bg-white text-black border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-500"
-            />
-            <div className="flex gap-2">
-              {selectedCategory === "out-of-stock" && (
-                <button
-                  onClick={handleDownloadOutOfStockPDF}
-                  disabled={downloadingPDF || products.filter((p) => p.stock === 0).length === 0}
-                  className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  style={{ backgroundColor: "var(--accent-turquoise)" }}
-                  title="Descargar PDF de productos fuera de stock"
-                >
-                  <Download size={18} />
-                  {downloadingPDF ? "Descargando..." : "Descargar PDF"}
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setShowForm(true)
-                  setEditingProduct(null)
-                }}
-                className="px-6 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all hover:shadow-lg"
-                style={{ backgroundColor: "var(--accent-green)" }}
-              >
-                Agregar Producto
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Filtro de categorías sticky */}
-        <div className="flex gap-2 mt-4 overflow-x-auto pb-2 -mx-4 px-4">
-          <button
-            onClick={() => setSelectedCategory("all")}
-            className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
-              selectedCategory === "all" ? "text-white shadow-lg" : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-            }`}
-            style={selectedCategory === "all" ? { backgroundColor: "var(--primary-dark)" } : {}}
-          >
-            Todos
-          </button>
-          <button
-            onClick={() => setSelectedCategory("out-of-stock")}
-            className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
-              selectedCategory === "out-of-stock" ? "text-white shadow-lg" : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-            }`}
-            style={selectedCategory === "out-of-stock" ? { backgroundColor: "var(--primary-dark)" } : {}}
-          >
-            Fuera de Stock
-          </button>
-          {categories.map((cat) => (
+      {/* Encabezado y controles */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 py-2">
+        <h1 className="font-bold text-lg sm:text-2xl md:text-3xl" style={{ color: "var(--primary-dark)" }}>
+          Gestión de Productos
+        </h1>
+        <div className="flex gap-2 items-center flex-wrap">
+          <input
+            type="text"
+            placeholder="🔎 Buscar productos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-4 py-2 bg-white text-black border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-500"
+          />
+          {selectedCategory === "out-of-stock" && (
             <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
-                selectedCategory === cat.id ? "text-white shadow-lg" : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-              }`}
-              style={selectedCategory === cat.id ? { backgroundColor: "var(--primary-dark)" } : {}}
+              onClick={handleDownloadOutOfStockPDF}
+              disabled={downloadingPDF || products.filter((p) => (p.stock?.[selectedStore] ?? 0) === 0).length === 0}
+              className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              style={{ backgroundColor: "var(--accent-turquoise)" }}
             >
-              {cat.name}
+              <Download size={18} />
+              {downloadingPDF ? "Descargando..." : "Descargar PDF"}
             </button>
-          ))}
+          )}
+          <button
+            onClick={() => {
+              setShowForm(true)
+              setEditingProduct(null)
+            }}
+            className="px-6 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all hover:shadow-lg"
+            style={{ backgroundColor: "var(--accent-green)" }}
+          >
+            Agregar Producto
+          </button>
         </div>
+      </div>
+
+      {/* Filtro de categorías */}
+      <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+        <button
+          onClick={() => setSelectedCategory("all")}
+          className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
+            selectedCategory === "all" ? "text-white shadow-lg" : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+          }`}
+          style={selectedCategory === "all" ? { backgroundColor: "var(--primary-dark)" } : {}}
+        >
+          Todos
+        </button>
+        <button
+          onClick={() => setSelectedCategory("out-of-stock")}
+          className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
+            selectedCategory === "out-of-stock" ? "text-white shadow-lg" : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+          }`}
+          style={selectedCategory === "out-of-stock" ? { backgroundColor: "var(--primary-dark)" } : {}}
+        >
+          Fuera de Stock
+        </button>
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setSelectedCategory(cat.id)}
+            className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
+              selectedCategory === cat.id ? "text-white shadow-lg" : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+            }`}
+            style={selectedCategory === cat.id ? { backgroundColor: "var(--primary-dark)" } : {}}
+          >
+            {cat.name}
+          </button>
+        ))}
       </div>
 
       {showForm && (
@@ -239,316 +384,109 @@ export default function ProductsManager() {
         />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-        {(() => {
-          // Filtrar productos según categoría seleccionada
-          let filteredProducts = products.filter((product) => {
-            // Filtrar por categoría
-            const categoryMatch = (() => {
-              if (selectedCategory === "all") return true
-              if (selectedCategory === "out-of-stock") return product.stock === 0
-              return product.category === selectedCategory
-            })()
-
-            // Filtrar por búsqueda
-            const searchMatch = searchTerm === "" || 
-              product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              categoriesMap.get(product.category)?.toLowerCase().includes(searchTerm.toLowerCase())
-
-            return categoryMatch && searchMatch
-          })
-
-          // Si está en "Todos", agrupar por categoría
+      {/* Grid de productos */}
+      {(() => {
+        // Filtrar productos
+        const filteredProducts = products.filter((product) => {
+          let categoryMatch = false
           if (selectedCategory === "all") {
-            const groupedByCategory = new Map<string, Product[]>()
-            
-            filteredProducts.forEach((product) => {
-              const categoryName = categoriesMap.get(product.category) || "Sin categoría"
-              if (!groupedByCategory.has(categoryName)) {
-                groupedByCategory.set(categoryName, [])
-              }
-              groupedByCategory.get(categoryName)!.push(product)
-            })
-
-            // Convertir a array ordenado alfabéticamente y ordenar productos por precio
-            const categorySections = Array.from(groupedByCategory.entries())
-              .sort((a, b) => a[0].localeCompare(b[0]))
-              .map(([categoryName, prods]) => [
-                categoryName,
-                [...prods].sort((a, b) => (a.price || 0) - (b.price || 0))
-              ]) as [string, Product[]][]
-
-            return (
-              <div className="col-span-full space-y-8">
-                {categorySections.map(([categoryName, categoryProducts], index) => (
-                  <div key={categoryName}>
-                    {/* Encabezado de categoría */}
-                    <h3 
-                      className="text-lg font-bold mb-4 pb-2" 
-                      style={{ color: "var(--primary-dark)" }}
-                    >
-                      {categoryName}
-                    </h3>
-
-                    {/* Grid de productos */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-                      {categoryProducts.map((product) => (
-                        <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
-                          {product.image && (
-                            <img src={product.image || "/placeholder.svg"} alt={product.name} className="w-full h-20 object-contain p-1 bg-gradient-to-br from-gray-100 to-gray-50" />
-                          )}
-                          <div className="p-2 space-y-1 flex-1 flex flex-col">
-                            <h3 className="font-bold text-xs" style={{ color: "var(--primary-dark)" }}>
-                              {product.name}
-                            </h3>
-                            <p className="text-xs text-gray-600 line-clamp-1">{product.description || "-"}</p>
-                            <div className="flex items-center justify-between mt-auto pt-2">
-                              <div>
-                                <p className="text-xs text-gray-500">Precio</p>
-                                <p className="text-sm font-bold" style={{ color: "var(--accent-turquoise)" }}>
-                                  {formatPriceWithCurrency(product.price)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500">Stock</p>
-                                <p className="text-sm font-bold">{product.stock}</p>
-                              </div>
-                            </div>
-                            <div className="space-y-1 text-xs">
-                              <p style={{ color: "var(--primary-dark)" }}>
-                                Categoría: {categoriesMap.get(product.category) || product.category}
-                              </p>
-                              {product.subcategory && (
-                                <p style={{ color: "var(--primary-dark)" }}>
-                                  Marca: {getSubcategoryName(product.subcategory)}
-                                </p>
-                              )}
-                              {product.sku && (
-                                <p style={{ color: "var(--primary-dark)" }}>
-                                  SKU: {product.sku}
-                                </p>
-                              )}
-                              {product.details && (
-                                <p style={{ color: "var(--primary-dark)" }} className="line-clamp-2">
-                                  Detalles: {product.details}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex gap-1 pt-2">
-                              <button
-                                onClick={() => {
-                                  setEditingProduct(product)
-                                  setShowForm(true)
-                                }}
-                                className="flex-1 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => handleDeleteProduct(product.id)}
-                                className="flex-1 px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Separador de categoría (no mostrar en la última) */}
-                    {index < categorySections.length - 1 && (
-                      <div className="my-8 border-t-2" style={{ borderColor: "#d4d4d4" }} />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )
+            categoryMatch = true
+          } else if (selectedCategory === "out-of-stock") {
+            categoryMatch = (product.stock?.[selectedStore] ?? 0) === 0
           } else {
-            // Para "Fuera de Stock" y categoría específica
-            // Si es "Fuera de Stock", agrupar por categoría
-            if (selectedCategory === "out-of-stock") {
-              const groupedByCategory = new Map<string, Product[]>()
-              
-              filteredProducts.forEach((product) => {
-                const categoryName = categoriesMap.get(product.category) || "Sin categoría"
-                if (!groupedByCategory.has(categoryName)) {
-                  groupedByCategory.set(categoryName, [])
-                }
-                groupedByCategory.get(categoryName)!.push(product)
-              })
+            categoryMatch = product.category === selectedCategory
+          }
 
-              // Convertir a array ordenado alfabéticamente y ordenar productos por precio
-              const categorySections = Array.from(groupedByCategory.entries())
-                .sort((a, b) => a[0].localeCompare(b[0]))
-                .map(([categoryName, prods]) => [
-                  categoryName,
-                  [...prods].sort((a, b) => (a.price || 0) - (b.price || 0))
-                ]) as [string, Product[]][]
+          const searchMatch = searchTerm === "" ||
+            product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.description?.toLowerCase().includes(searchTerm.toLowerCase())
 
-              return (
-                <div className="col-span-full space-y-8">
-                  {categorySections.map(([categoryName, categoryProducts], index) => (
-                    <div key={categoryName}>
-                      {/* Encabezado de categoría */}
-                      <h3 
-                        className="text-lg font-bold mb-4 pb-2" 
-                        style={{ color: "var(--primary-dark)" }}
-                      >
-                        {categoryName}
-                      </h3>
+          return categoryMatch && searchMatch
+        })
 
-                      {/* Grid de productos */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-                        {categoryProducts.map((product) => (
-                          <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
-                            {product.image && (
-                              <img src={product.image || "/placeholder.svg"} alt={product.name} className="w-full h-20 object-contain p-1 bg-gradient-to-br from-gray-100 to-gray-50" />
-                            )}
-                            <div className="p-2 space-y-1 flex-1 flex flex-col">
-                              <h3 className="font-bold text-xs" style={{ color: "var(--primary-dark)" }}>
-                                {product.name}
-                              </h3>
-                              <p className="text-xs text-gray-600 line-clamp-1">{product.description || "-"}</p>
-                              <div className="flex items-center justify-between mt-auto pt-2">
-                                <div>
-                                  <p className="text-xs text-gray-500">Precio</p>
-                                  <p className="text-sm font-bold" style={{ color: "var(--accent-turquoise)" }}>
-                                    {formatPriceWithCurrency(product.price)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-gray-500">Stock</p>
-                                  <p className="text-sm font-bold">{product.stock}</p>
-                                </div>
-                              </div>
-                              <div className="space-y-1 text-xs">
-                                <p style={{ color: "var(--primary-dark)" }}>
-                                  Categoría: {categoriesMap.get(product.category) || product.category}
-                                </p>
-                                {product.subcategory && (
-                                  <p style={{ color: "var(--primary-dark)" }}>
-                                    Marca: {getSubcategoryName(product.subcategory)}
-                                  </p>
-                                )}
-                                {product.sku && (
-                                  <p style={{ color: "var(--primary-dark)" }}>
-                                    SKU: {product.sku}
-                                  </p>
-                                )}
-                                {product.details && (
-                                  <p style={{ color: "var(--primary-dark)" }} className="line-clamp-2">
-                                    Detalles: {product.details}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex gap-1 pt-2">
-                                <button
-                                  onClick={() => {
-                                    setEditingProduct(product)
-                                    setShowForm(true)
-                                  }}
-                                  className="flex-1 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteProduct(product.id)}
-                                  className="flex-1 px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+        // Agrupar por categoría
+        const groupedByCategory = new Map<string, Product[]>()
+        filteredProducts.forEach((product) => {
+          const categoryName = categoriesMap.get(product.category) || 'Sin categoría'
+          if (!groupedByCategory.has(categoryName)) {
+            groupedByCategory.set(categoryName, [])
+          }
+          groupedByCategory.get(categoryName)!.push(product)
+        })
 
-                      {/* Separador de categoría (no mostrar en la última) */}
-                      {index < categorySections.length - 1 && (
-                        <div className="my-8 border-t-2" style={{ borderColor: "#d4d4d4" }} />
-                      )}
+        // Ordenar categorías alfabéticamente y productos por precio
+        const sortedCategories = Array.from(groupedByCategory.entries())
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([categoryName, categoryProducts]) => [
+            categoryName,
+            categoryProducts.sort((a, b) => (a.price || 0) - (b.price || 0))
+          ]) as [string, Product[]][]
+
+        return (
+          <>
+            {sortedCategories.map(([categoryName, categoryProducts]) => (
+              <div key={categoryName} className="mb-8">
+                <h2 className="text-xl font-bold mb-4 pb-2 border-b-2" style={{ color: 'var(--primary-dark)', borderColor: 'var(--primary-dark)' }}>
+                  {categoryName}
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3">
+                  {categoryProducts.map((product) => (
+            <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
+              {product.image && (
+                <img src={product.image} alt={product.name} className="w-full h-24 object-contain p-2" />
+              )}
+              <div className="p-2 space-y-1 flex-1 flex flex-col">
+                <h3 className="font-bold text-xs" style={{ color: "var(--primary-dark)" }}>
+                  {product.name}
+                </h3>
+                <p className="text-xs text-gray-600 line-clamp-1">{product.description || "-"}</p>
+                <p className="text-xs font-bold mt-auto" style={{ color: "var(--accent-turquoise)" }}>
+                  {formatPriceWithCurrency(product.price)}
+                </p>
+                <div className="text-xs space-y-0.5">
+                  {stores.map((store) => (
+                    <div key={store.id} className={`${(product.stock?.[store.id] ?? 0) === 0 ? "text-red-600 font-bold" : ""}`}>
+                      {store.name}: {product.stock?.[store.id] ?? 0}
                     </div>
                   ))}
                 </div>
-              )
-            } else {
-              // Para categoría específica, solo ordenar por precio
-              const sortedProducts = [...filteredProducts].sort((a, b) => (a.price || 0) - (b.price || 0))
-              
-              return sortedProducts.map((product) => (
-                <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
-                  {product.image && (
-                    <img src={product.image || "/placeholder.svg"} alt={product.name} className="w-full h-20 object-contain p-1 bg-gradient-to-br from-gray-100 to-gray-50" />
-                  )}
-                  <div className="p-2 space-y-1 flex-1 flex flex-col">
-                    <h3 className="font-bold text-xs" style={{ color: "var(--primary-dark)" }}>
-                      {product.name}
-                    </h3>
-                    <p className="text-xs text-gray-600 line-clamp-1">{product.description || "-"}</p>
-                    <div className="flex items-center justify-between mt-auto pt-2">
-                      <div>
-                        <p className="text-xs text-gray-500">Precio</p>
-                        <p className="text-sm font-bold" style={{ color: "var(--accent-turquoise)" }}>
-                          {formatPriceWithCurrency(product.price)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Stock</p>
-                        <p className="text-sm font-bold">{product.stock}</p>
-                      </div>
-                    </div>
-                    <div className="space-y-1 text-xs">
-                      <p style={{ color: "var(--primary-dark)" }}>
-                        Categoría: {categoriesMap.get(product.category) || product.category}
-                      </p>
-                      {product.subcategory && (
-                        <p style={{ color: "var(--primary-dark)" }}>
-                          Marca: {getSubcategoryName(product.subcategory)}
-                        </p>
-                      )}
-                      {product.sku && (
-                        <p style={{ color: "var(--primary-dark)" }}>
-                          SKU: {product.sku}
-                        </p>
-                      )}
-                      {product.details && (
-                        <p style={{ color: "var(--primary-dark)" }} className="line-clamp-2">
-                          Detalles: {product.details}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex gap-1 pt-2">
-                      <button
-                        onClick={() => {
-                          setEditingProduct(product)
-                          setShowForm(true)
-                        }}
-                        className="flex-1 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="flex-1 px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
+                <div className="flex gap-1 pt-2">
+                  <button
+                    onClick={() => {
+                      setEditingProduct(product)
+                      setShowForm(true)
+                    }}
+                    className="flex-1 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDeleteProduct(product.id)}
+                    className="flex-1 px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                  >
+                    Eliminar
+                  </button>
+                  <button
+                    onClick={() => setShowStockPanel({ open: true, product })}
+                    className="flex-1 px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                  >
+                    Stock
+                  </button>
                 </div>
-              ))
-            }
-          }
-        })()}
-      </div>
+              </div>
+            </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </>
+        )
+      })()}
 
-      {products.filter((product) => {
+      {products.filter((p) => {
         if (selectedCategory === "all") return true
-        if (selectedCategory === "out-of-stock") return product.stock === 0
-        return product.category === selectedCategory
+        if (selectedCategory === "out-of-stock") return (p.stock?.[selectedStore] ?? 0) === 0
+        return p.category === selectedCategory
       }).length === 0 && (
         <div className="text-center py-12 text-gray-500">
           {products.length === 0 ? "No hay productos aún" : "No hay productos en esta categoría"}
@@ -557,3 +495,5 @@ export default function ProductsManager() {
     </div>
   )
 }
+
+export default ProductsManager;

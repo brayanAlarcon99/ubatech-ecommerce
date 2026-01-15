@@ -170,57 +170,46 @@ export default function TiendaPage() {
 
           {showHero && <Hero />}
 
-          <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
-            <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
-              <div className="flex flex-col gap-2 sm:gap-4 mb-3 sm:mb-4">
-                <h2 className="text-xl sm:text-3xl font-bold" style={{ color: 'var(--primary)' }}>
-                  Nuestros Productos
-                </h2>
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 sm:px-4 py-2 bg-white text-black border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-500 text-sm sm:text-base"
-                />
-              </div>
-
-              <div className="mb-2 sm:mb-3">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Categorías</p>
-                  {subcategories.length > 0 && (
-                    <button
-                      onClick={() => setMobileFiltersOpen(true)}
-                      className="sm:hidden flex items-center gap-2 px-2 sm:px-3 py-1 bg-gray-200 hover:bg-gray-300 text-black rounded font-medium text-xs sm:text-sm transition-colors"
-                    >
-                      <Menu size={16} />
-                      Subcategorías
-                    </button>
-                  )}
-                </div>
-                <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0">
+          {/* HEADER CATEGORÍAS - Siempre visible y bloqueado */}
+          <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-md">
+            <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
+              <h2 className="text-lg sm:text-2xl font-bold mb-2 sm:mb-3" style={{ color: 'var(--primary)' }}>
+                Nuestros Productos
+              </h2>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Categorías</p>
+                {subcategories.length > 0 && (
                   <button
-                    onClick={() => setCategory('all')}
-                    className={`px-2 sm:px-4 py-1 sm:py-2 rounded-full whitespace-nowrap font-medium transition-all text-xs sm:text-sm ${
-                      category === 'all' ? 'text-white shadow-lg' : 'bg-gray-200 hover:bg-gray-300'
-                    }`}
-                    style={category === 'all' ? { backgroundColor: 'var(--primary)' } : {}}
+                    onClick={() => setMobileFiltersOpen(true)}
+                    className="sm:hidden flex items-center gap-2 px-2 sm:px-3 py-1 bg-gray-200 hover:bg-gray-300 text-black rounded font-medium text-xs sm:text-sm transition-colors"
                   >
-                    Todas
+                    <Menu size={16} />
+                    Subcategorías
                   </button>
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setCategory(cat.id)}
-                      className={`px-2 sm:px-4 py-1 sm:py-2 rounded-full whitespace-nowrap font-medium transition-all text-xs sm:text-sm ${
-                        category === cat.id ? 'text-white shadow-lg' : 'bg-gray-200 hover:bg-gray-300'
-                      }`}
-                      style={category === cat.id ? { backgroundColor: 'var(--primary)' } : {}}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
+                )}
+              </div>
+              <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0">
+                <button
+                  onClick={() => setCategory('all')}
+                  className={`px-2 sm:px-4 py-1 sm:py-2 rounded-full whitespace-nowrap font-medium transition-all text-xs sm:text-sm ${
+                    category === 'all' ? 'text-white shadow-lg' : 'bg-gray-200 hover:bg-gray-300'
+                  }`}
+                  style={category === 'all' ? { backgroundColor: 'var(--primary)' } : {}}
+                >
+                  Todas
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setCategory(cat.id)}
+                    className={`px-2 sm:px-4 py-1 sm:py-2 rounded-full whitespace-nowrap font-medium transition-all text-xs sm:text-sm ${
+                      category === cat.id ? 'text-white shadow-lg' : 'bg-gray-200 hover:bg-gray-300'
+                    }`}
+                    style={category === cat.id ? { backgroundColor: 'var(--primary)' } : {}}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -251,7 +240,7 @@ export default function TiendaPage() {
                 `}
               >
                 {/* Header del Drawer - Solo móvil */}
-                <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-300 sticky top-0 bg-white">
+                <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-300 sticky top-0 bg-white z-10">
                   <h3 className="font-bold text-gray-900">Subcategorías</h3>
                   <button
                     onClick={() => setMobileFiltersOpen(false)}
@@ -263,7 +252,7 @@ export default function TiendaPage() {
 
                 {/* Contenido Filtros */}
                 <div className="p-4">
-                  <h3 className="hidden lg:block text-sm font-bold uppercase tracking-wide mb-4 text-gray-900" style={{ color: 'var(--primary-dark)' }}>
+                  <h3 className="hidden lg:block sticky top-0 text-sm font-bold uppercase tracking-wide mb-4 text-gray-900 bg-gradient-to-b from-gray-50 to-gray-100 py-2" style={{ color: 'var(--primary-dark)' }}>
                     Subcategorías
                   </h3>
                   

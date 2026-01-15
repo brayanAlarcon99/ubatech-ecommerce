@@ -4,6 +4,7 @@ import type { Product } from '@/types'
 interface PDFGeneratorOptions {
   fileName?: string
   title?: string
+  outOfStockByProduct?: Map<string, string[]>
 }
 
 async function loadImage(url: string): Promise<string | null> {
@@ -37,7 +38,7 @@ export async function generateOutOfStockPDF(
   categoriesMap: Map<string, string>,
   options: PDFGeneratorOptions = {}
 ) {
-  const { fileName = 'Productos_Fuera_de_Stock.pdf', title = 'Reporte de Productos Fuera de Stock' } = options
+  const { fileName = 'Productos_Fuera_de_Stock.pdf', title = 'Reporte de Productos Fuera de Stock', outOfStockByProduct } = options
 
   // Crear documento PDF
   const doc = new jsPDF({
@@ -150,6 +151,14 @@ export async function generateOutOfStockPDF(
         maximumFractionDigits: 2,
       }).format(product.price) : 'N/A'
       infoLines.push(`Precio: $${formattedPrice}`)
+
+      // Agregar tiendas sin stock
+      if (outOfStockByProduct && outOfStockByProduct.has(product.id)) {
+        const storesWithoutStock = outOfStockByProduct.get(product.id)
+        if (storesWithoutStock && storesWithoutStock.length > 0) {
+          infoLines.push(`Fuera de Stock: ${storesWithoutStock.join(', ')}`)
+        }
+      }
 
       if (product.subcategory) {
         infoLines.push(`Marca: ${product.subcategory}`)

@@ -190,57 +190,46 @@ export default function StorePage() {
 
           {showHero && <Hero storeId={store} />}
 
-          <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
-            <div className="max-w-7xl mx-auto px-4 py-4">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <h2 className="text-3xl font-bold" style={{ color: titleColor }}>
-                  Nuestros Productos
-                </h2>
-                <input
-                  type="text"
-                  placeholder="Buscar productos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="px-4 py-2 bg-white text-black border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-500"
-                />
-              </div>
-
-              <div className="mb-3">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="text-sm font-medium text-black">Categorías</p>
-                  {subcategories.length > 0 && (
-                    <button
-                      onClick={() => setMobileFiltersOpen(true)}
-                      className="lg:hidden flex items-center gap-2 px-3 py-1 bg-gray-200 hover:bg-gray-300 text-black rounded font-medium text-sm transition-colors"
-                    >
-                      <Menu size={18} />
-                      Subcategorías
-                    </button>
-                  )}
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-2">
+          {/* HEADER CATEGORÍAS - Siempre visible */}
+          <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-md">
+            <div className="max-w-7xl mx-auto px-4 py-3">
+              <h2 className="text-2xl font-bold mb-3" style={{ color: titleColor }}>
+                Nuestros Productos
+              </h2>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-sm font-medium text-black">Categorías</p>
+                {subcategories.length > 0 && (
                   <button
-                    onClick={() => setCategory('all')}
-                    className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
-                      category === 'all' ? 'text-white shadow-lg' : 'bg-gray-200 hover:bg-gray-300 text-black'
-                    }`}
-                    style={category === 'all' ? { backgroundColor: categoryButtonColor } : {}}
+                    onClick={() => setMobileFiltersOpen(true)}
+                    className="lg:hidden flex items-center gap-2 px-3 py-1 bg-gray-200 hover:bg-gray-300 text-black rounded font-medium text-sm transition-colors"
                   >
-                    Todas
+                    <Menu size={18} />
+                    Subcategorías
                   </button>
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setCategory(cat.id)}
-                      className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
-                        category === cat.id ? 'text-white shadow-lg' : 'bg-gray-200 hover:bg-gray-300 text-black'
-                      }`}
-                      style={category === cat.id ? { backgroundColor: categoryButtonColor } : {}}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
+                )}
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                <button
+                  onClick={() => setCategory('all')}
+                  className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
+                    category === 'all' ? 'text-white shadow-lg' : 'bg-gray-200 hover:bg-gray-300 text-black'
+                  }`}
+                  style={category === 'all' ? { backgroundColor: categoryButtonColor } : {}}
+                >
+                  Todas
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setCategory(cat.id)}
+                    className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
+                      category === cat.id ? 'text-white shadow-lg' : 'bg-gray-200 hover:bg-gray-300 text-black'
+                    }`}
+                    style={category === cat.id ? { backgroundColor: categoryButtonColor } : {}}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -272,7 +261,7 @@ export default function StorePage() {
                 `}
               >
                 {/* Header del Drawer - Solo móvil */}
-                <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-300 sticky top-0 bg-white">
+                <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-300 sticky top-0 bg-white z-10">
                   <h3 className="font-bold text-gray-900">Subcategorías</h3>
                   <button
                     onClick={() => setMobileFiltersOpen(false)}
@@ -284,7 +273,7 @@ export default function StorePage() {
 
                 {/* Contenido Filtros */}
                 <div className="p-4">
-                  <h3 className="hidden lg:block text-sm font-bold uppercase tracking-wide mb-4" style={{ color: categoryNameColor }}>
+                  <h3 className="hidden lg:block sticky top-0 text-sm font-bold uppercase tracking-wide mb-4 bg-gradient-to-b from-gray-50 to-gray-100 py-2" style={{ color: categoryNameColor }}>
                     Subcategorías
                   </h3>
                   
@@ -371,7 +360,7 @@ export default function StorePage() {
 
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
                             {categoryProducts.map((product) => (
-                              <ProductCard key={product.id} product={product} />
+                              <ProductCard key={product.id} product={product} storeId={store} />
                             ))}
                           </div>
 

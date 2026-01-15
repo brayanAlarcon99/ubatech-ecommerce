@@ -160,7 +160,6 @@ export default function AdminDashboard() {
       <div className="flex flex-1 overflow-hidden">
         <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} userRole={role} />
         <main className="flex-1 overflow-y-auto p-8" style={{ backgroundColor: "#f8fafc" }}>
-          
           {activeTab === "dashboard" && <Analytics />}
           {activeTab === "products" && <ProductsManager />}
           {activeTab === "categories" && <CategoriesManager />}

@@ -39,6 +39,15 @@ export default function CartPage() {
             <div className="md:col-span-2 space-y-3 sm:space-y-4">
               {cart.map((item) => (
                 <div key={item.id} className="border rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white gap-3 sm:gap-4">
+                  {item.image && (
+                    <div className="flex-shrink-0">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-200"
+                      />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold mb-1 text-sm sm:text-base truncate" style={{ color: "var(--primary)" }}>
                       {item.name}

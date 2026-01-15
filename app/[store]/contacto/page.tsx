@@ -52,28 +52,21 @@ export default function ContactoPage() {
     setError(null)
 
     try {
-      const response = await fetch("/api/send-contact-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          message: formData.message,
-          store: storeId,
-          storeEmail: storeInfo?.email || "",
-          storeName: storeInfo?.name || "",
-        }),
-      })
+      // Crear mensaje para WhatsApp con formato elegante
+      const whatsappMessage = encodeURIComponent(
+        `*Consulta de ${formData.name}*\n\n📧 Email: ${formData.email}\n\n💬 Mensaje:\n${formData.message}\n\n_Enviado desde ${storeInfo?.name}_`
+      )
+      const phoneFormatted = formatPhoneForWhatsapp(storeInfo?.phone || "")
+      
+      // Abrir WhatsApp con el mensaje
+      window.open(
+        `https://wa.me/${phoneFormatted}?text=${whatsappMessage}`,
+        "_blank"
+      )
 
-      if (response.ok) {
-        setSubmitted(true)
-        setFormData({ name: "", email: "", message: "" })
-        setTimeout(() => setSubmitted(false), 5000)
-      } else {
-        setError("Error al enviar el mensaje. Intenta nuevamente.")
-      }
+      setSubmitted(true)
+      setFormData({ name: "", email: "", message: "" })
+      setTimeout(() => setSubmitted(false), 5000)
     } catch {
       setError("Error al enviar el mensaje. Intenta nuevamente.")
     } finally {
@@ -83,19 +76,6 @@ export default function ContactoPage() {
 
   const getMapUrl = () => {
     return "https://www.google.com/maps/place/Djcelutecnico/@5.3091793,-73.8131533,3a,75y,157.32h,105.82t/data=!3m7!1e1!3m5!1slHSlJIsSDnObsjD4hXK_UA!2e0!6shttps:%2F%2Fstreetviewpixels-pa.googleapis.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D-15.819999999999993%26panoid%3DlHSlJIsSDnObsjD4hXK_UA%26yaw%3D157.32!7i16384!8i8192!4m17!1m9!3m8!1s0x8e40385c7a9fe659:0x214002c0c575d2!2sCra.+7+%23+9-72,+Ubat%C3%A9,+Villa+de+San+Diego+de+Ubat%C3%A9,+Cundinamarca!3b1!8m2!3d5.309132!4d-73.813137!10e5!16s%2Fg%2F11m62rzplt!3m6!1s0x8e4039f96bfe3f27:0x32c874342d4b68da!8m2!3d5.3091399!4d-73.8131219!10e5!16s%2Fg%2F11h129n8_7?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D"
-  }
-
-  const handleWhatsappClick = () => {
-    if (storeInfo?.phone) {
-      const phoneFormatted = formatPhoneForWhatsapp(storeInfo.phone)
-      const message = encodeURIComponent(
-        `Hola, quisiera consultar sobre los productos de ${storeInfo.name}`
-      )
-      window.open(
-        `https://wa.me/${phoneFormatted}?text=${message}`,
-        "_blank"
-      )
-    }
   }
 
   if (loading) {
@@ -184,13 +164,6 @@ export default function ContactoPage() {
                   >
                     {storeInfo.phone}
                   </a>
-                  <button
-                    onClick={handleWhatsappClick}
-                    className="ml-4 px-4 py-2 rounded-lg text-white transition-colors text-sm"
-                    style={{ backgroundColor: "#25D366" }}
-                  >
-                    WhatsApp
-                  </button>
                 </div>
               </div>
 
@@ -224,7 +197,7 @@ export default function ContactoPage() {
 
             {submitted && (
               <div className="mb-6 p-4 bg-green-100 text-green-800 rounded-lg">
-                ✓ Mensaje enviado correctamente. Nos pondremos en contacto pronto.
+                ✓ Mensaje enviado a WhatsApp. Se abrirá una nueva ventana para completar el envío.
               </div>
             )}
 

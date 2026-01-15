@@ -2,6 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/* --- Responsive improvements for admin panel --- */
+html {
+  /* Ensure viewport takes full width on mobile */
+  min-width: 100vw;
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .admin-panel-main {
+    padding: 0.5rem !important;
+  }
+  .admin-panel-header, .admin-panel-sidebar {
+    position: static !important;
+    width: 100vw !important;
+    min-width: 0 !important;
+    max-width: 100vw !important;
+  }
+  .admin-panel-sidebar {
+    display: none !important;
+  }
+  .admin-panel-content, main, .main-content {
+    width: 100vw !important;
+    min-width: 0 !important;
+    max-width: 100vw !important;
+    padding: 0.5rem !important;
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
