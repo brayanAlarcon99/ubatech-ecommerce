@@ -3,6 +3,7 @@ export interface Product {
   name: string
   description: string
   price: number
+  discountedPrice?: number
   category: string
   subcategory?: string
   stock: {

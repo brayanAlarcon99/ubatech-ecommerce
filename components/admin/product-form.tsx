@@ -29,6 +29,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     name: product?.name || "",
     description: product?.description || "",
     price: product?.price || 0,
+    discountedPrice: product?.discountedPrice || 0,
     category: product?.category || "",
     subcategory: product?.subcategory || "",
     stock: product?.stock || { djcelutecnico: 0, ubatech: 0 },
@@ -47,11 +48,23 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
   const [imageError, setImageError] = useState<string | null>(null)
   const [imageLoadSuccess, setImageLoadSuccess] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [discountPercentage, setDiscountPercentage] = useState<number>(0)
 
   // Cargar datos de categorías y subcategorías
   useEffect(() => {
     loadCategoriesData()
   }, [])
+
+  // Calcular descuento cuando hay precio con descuento
+  useEffect(() => {
+    if (formData.price > 0 && formData.discountedPrice > 0) {
+      const discount = ((formData.price - formData.discountedPrice) / formData.price) * 100
+      const roundedDiscount = Math.ceil(discount)
+      setDiscountPercentage(roundedDiscount)
+    } else {
+      setDiscountPercentage(0)
+    }
+  }, [formData.price, formData.discountedPrice])
 
   // Una vez que se carguen las categorías, si estamos editando, necesitamos convertir el nombre a ID
   useEffect(() => {
@@ -122,11 +135,11 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target
-    if (name === "price") {
+    if (name === "price" || name === "discountedPrice") {
       const numValue = sanitizePriceInput(value);
       setFormData((prev) => ({
         ...prev,
-        price: numValue,
+        [name]: numValue,
       }))
     } else if (name.startsWith("stock_")) {
       const storeId = name.replace("stock_", "");
@@ -227,7 +240,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     setLoading(true)
     setSaveError(null)
     try {
-      // Validación de tamaño de imagen en base64 ANTES de guardar
+      // Validación de imagen
       if (formData.image) {
         const imageSizeBytes = formData.image.length
         const MAX_BASE64_SIZE = 1048487 // bytes
@@ -241,10 +254,18 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
         }
       }
 
+      // Validación de descuento
+      if (formData.discountedPrice > 0 && formData.discountedPrice >= formData.price) {
+        setSaveError("⚠️ El precio con descuento debe ser menor que el precio original")
+        setLoading(false)
+        return
+      }
+
       // Asegurar que el precio se guarde como un número válido con máximo 2 decimales
       const dataToSave = {
         ...formData,
         price: Math.round(formData.price * 100) / 100, // Redondea a 2 decimales
+        discountedPrice: formData.discountedPrice > 0 ? Math.round(formData.discountedPrice * 100) / 100 : undefined,
         stock: {
           djcelutecnico: Math.floor(formData.stock.djcelutecnico || 0),
           ubatech: Math.floor(formData.stock.ubatech || 0),
@@ -367,6 +388,39 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-black" style={{ color: "var(--primary)" }}>
+                Precio con Descuento (Opcional)
+              </label>
+              <div>
+                <input
+                  type="text"
+                  name="discountedPrice"
+                  value={formData.discountedPrice > 0 ? String(formData.discountedPrice) : ""}
+                  onChange={handleChange}
+                  placeholder="Ej: 4500 o 4.500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
+                />
+                {formData.discountedPrice > 0 && formData.price > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-xs text-gray-500" style={{ color: "var(--accent-green)" }}>
+                      ✓ Mostrará como: ${formatPrice(formData.discountedPrice)}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-white px-3 py-1 rounded-full" style={{ backgroundColor: "var(--accent-cyan)" }}>
+                        Descuento: {discountPercentage}%
+                      </span>
+                      {formData.discountedPrice >= formData.price && (
+                        <span className="text-xs text-red-600 font-semibold">
+                          ⚠️ Debe ser menor que el precio original
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

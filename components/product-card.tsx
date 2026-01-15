@@ -86,6 +86,14 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
     setQuantity(1)
   }
 
+  const getDiscountPercentage = () => {
+    if (product.discountedPrice && product.discountedPrice > 0 && product.price > product.discountedPrice) {
+      const discount = ((product.price - product.discountedPrice) / product.price) * 100
+      return Math.ceil(discount)
+    }
+    return 0
+  }
+
   return (
     <>
       <div
@@ -130,10 +138,22 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
             {subcategoryName && ` - ${subcategoryName}`}
           </div>
 
-          <div className="flex items-center justify-between mt-1 sm:mt-2">
-            <span className="text-sm sm:text-lg font-bold" style={{ color: "var(--accent-green)" }}>
-              {formatPriceWithCurrency(product.price)}
-            </span>
+          <div className="flex items-center justify-between mt-1 sm:mt-2 gap-2">
+            <div className="flex flex-col">
+              {product.discountedPrice && product.discountedPrice > 0 && (
+                <span className="text-[8px] sm:text-xs text-gray-500 line-through">
+                  {formatPriceWithCurrency(product.price)}
+                </span>
+              )}
+              <span className="text-sm sm:text-lg font-bold" style={{ color: "var(--accent-green)" }}>
+                {formatPriceWithCurrency(product.discountedPrice || product.price)}
+              </span>
+            </div>
+            {getDiscountPercentage() > 0 && (
+              <span className="text-white text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1 rounded-full" style={{ backgroundColor: "var(--accent-cyan)" }}>
+                -{getDiscountPercentage()}%
+              </span>
+            )}
           </div>
 
           <div className="mt-1 sm:mt-2 pt-1 sm:pt-2 border-t border-gray-200">
@@ -217,9 +237,21 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
                     )}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-2">
                       <span className="text-gray-700 font-semibold text-sm">Precio:</span>
-                      <span className="text-xl sm:text-3xl font-bold" style={{ color: "var(--accent-green)" }}>
-                        {formatPriceWithCurrency(product.price)}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        {product.discountedPrice && product.discountedPrice > 0 && (
+                          <span className="text-sm sm:text-base text-gray-500 line-through">
+                            {formatPriceWithCurrency(product.price)}
+                          </span>
+                        )}
+                        <span className="text-xl sm:text-3xl font-bold" style={{ color: "var(--accent-green)" }}>
+                          {formatPriceWithCurrency(product.discountedPrice || product.price)}
+                        </span>
+                        {getDiscountPercentage() > 0 && (
+                          <span className="text-white text-xs sm:text-sm font-bold px-3 py-1 rounded-full" style={{ backgroundColor: "var(--accent-cyan)" }}>
+                            -{getDiscountPercentage()}% de descuento
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
                       <span className="text-gray-700 font-semibold text-sm">Stock disponible:</span>

@@ -440,9 +440,27 @@ function ProductsManager() {
                   {product.name}
                 </h3>
                 <p className="text-xs text-gray-600 line-clamp-1">{product.description || "-"}</p>
-                <p className="text-xs font-bold mt-auto" style={{ color: "var(--accent-turquoise)" }}>
-                  {formatPriceWithCurrency(product.price)}
-                </p>
+                <div className="mt-auto">
+                  {product.discountedPrice && product.discountedPrice > 0 ? (
+                    <div>
+                      <p className="text-xs text-gray-500 line-through">
+                        {formatPriceWithCurrency(product.price)}
+                      </p>
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-xs font-bold" style={{ color: "var(--accent-green)" }}>
+                          {formatPriceWithCurrency(product.discountedPrice)}
+                        </p>
+                        <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--accent-cyan)" }}>
+                          -{Math.ceil(((product.price - product.discountedPrice) / product.price) * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs font-bold" style={{ color: "var(--accent-turquoise)" }}>
+                      {formatPriceWithCurrency(product.price)}
+                    </p>
+                  )}
+                </div>
                 <div className="text-xs space-y-0.5">
                   {stores.map((store) => (
                     <div key={store.id} className={`${(product.stock?.[store.id] ?? 0) === 0 ? "text-red-600 font-bold" : ""}`}>
