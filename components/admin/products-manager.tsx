@@ -129,10 +129,16 @@ function ProductsManager() {
   async function handleSaveProduct(productData: Omit<Product, "id">) {
     try {
       const db = getDb()
+      
+      // Limpiar campos undefined para evitar errores de Firestore
+      const cleanedData = Object.fromEntries(
+        Object.entries(productData).filter(([_, value]) => value !== undefined)
+      )
+      
       if (editingProduct) {
-        await updateDoc(doc(db, "products", editingProduct.id), productData)
+        await updateDoc(doc(db, "products", editingProduct.id), cleanedData)
       } else {
-        await addDoc(collection(db, "products"), productData)
+        await addDoc(collection(db, "products"), cleanedData)
       }
       setShowForm(false)
       setEditingProduct(null)

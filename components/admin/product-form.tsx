@@ -262,15 +262,20 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       }
 
       // Asegurar que el precio se guarde como un número válido con máximo 2 decimales
-      const dataToSave = {
+      const dataToSave: Omit<Product, "id"> = {
         ...formData,
         price: Math.round(formData.price * 100) / 100, // Redondea a 2 decimales
-        discountedPrice: formData.discountedPrice > 0 ? Math.round(formData.discountedPrice * 100) / 100 : undefined,
         stock: {
           djcelutecnico: Math.floor(formData.stock.djcelutecnico || 0),
           ubatech: Math.floor(formData.stock.ubatech || 0),
         },
       }
+      
+      // Agregar discountedPrice solo si es mayor a 0
+      if (formData.discountedPrice > 0) {
+        dataToSave.discountedPrice = Math.round(formData.discountedPrice * 100) / 100
+      }
+      
       onSave(dataToSave)
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
