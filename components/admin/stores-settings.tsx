@@ -144,6 +144,20 @@ export default function StoresSettings() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📝 Descripción Corta (Aparece en la página principal)
+                </label>
+                <textarea
+                  value={formData.description || ""}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  rows={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white text-black"
+                  placeholder="Ej: Tu tienda DJCelutecnico - Especialistas en tecnología"
+                />
+                <p className="text-sm text-gray-500 mt-2">✓ Se mostrará en el banner principal (hero) de la tienda pública</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Sobre Nosotros
                 </label>
                 <textarea
