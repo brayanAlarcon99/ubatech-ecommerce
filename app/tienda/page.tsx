@@ -122,7 +122,12 @@ export default function TiendaPage() {
 
   let filteredProducts = products;
 
-  if (category !== 'all') {
+  // Filtro especial para OFERTAS & DESCUENTOS
+  if (category === 'descuentos') {
+    filteredProducts = filteredProducts.filter(
+      (p) => p.discountedPrice && p.discountedPrice > 0 && p.discountedPrice < p.price
+    );
+  } else if (category !== 'all') {
     filteredProducts = filteredProducts.filter((p) => p.category === category);
   }
 
@@ -198,6 +203,26 @@ export default function TiendaPage() {
                 >
                   Todas
                 </button>
+                
+                {/* Filtro especial OFERTAS & DESCUENTOS */}
+                <button
+                  onClick={() => setCategory('descuentos')}
+                  className={`px-2 sm:px-4 py-1 sm:py-2 rounded-full whitespace-nowrap font-bold transition-all text-xs sm:text-sm shadow-md ${
+                    category === 'descuentos' ? 'text-white shadow-lg scale-105' : 'text-white hover:shadow-lg hover:scale-105'
+                  }`}
+                  style={category === 'descuentos' 
+                    ? { 
+                        background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent-turquoise) 100%)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                      } 
+                    : { 
+                        background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent-turquoise) 100%)'
+                      }
+                  }
+                >
+                  🎉 OFERTAS
+                </button>
+
                 {categories.map((cat) => (
                   <button
                     key={cat.id}
@@ -313,9 +338,19 @@ export default function TiendaPage() {
                 </div>
               ) : filteredProducts.length > 0 ? (
                 (() => {
+                  // Separar productos con descuento de los demás
+                  const productsWithDiscount = filteredProducts.filter(
+                    (p) => p.discountedPrice && p.discountedPrice > 0 && p.discountedPrice < p.price
+                  );
+                  
+                  const productsWithoutDiscount = filteredProducts.filter(
+                    (p) => !p.discountedPrice || p.discountedPrice <= 0 || p.discountedPrice >= p.price
+                  );
+
+                  // Agrupar productos sin descuento por categoría
                   const groupedByCategory = new Map<string, Product[]>();
 
-                  filteredProducts.forEach((product) => {
+                  productsWithoutDiscount.forEach((product) => {
                     const categoryName = categoriesMap.get(product.category) || 'Sin categoría';
                     if (!groupedByCategory.has(categoryName)) {
                       groupedByCategory.set(categoryName, []);
@@ -332,6 +367,37 @@ export default function TiendaPage() {
 
                   return (
                     <div className="space-y-6 sm:space-y-8">
+                      {/* SECCIÓN DE OFERTAS Y DESCUENTOS - Aparece solo si hay productos con descuento */}
+                      {productsWithDiscount.length > 0 && (
+                        <>
+                          <div>
+                            <h3 
+                              className="text-lg sm:text-2xl font-bold mb-3 sm:mb-4 pb-2 inline-block px-3 py-2 rounded-lg" 
+                              style={{ 
+                                color: '#fff',
+                                backgroundColor: 'var(--primary)',
+                                backgroundImage: 'linear-gradient(135deg, var(--primary) 0%, var(--accent-turquoise) 100%)'
+                              }}
+                            >
+                              🎉 OFERTAS & DESCUENTOS 🎉
+                            </h3>
+
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8 mt-4">
+                              {[...productsWithDiscount]
+                                .sort((a, b) => (a.price || 0) - (b.price || 0))
+                                .map((product) => (
+                                  <ProductCard key={product.id} product={product} />
+                                ))}
+                            </div>
+                          </div>
+
+                          {categorySections.length > 0 && (
+                            <div className="my-6 sm:my-8 border-t-2" style={{ borderColor: '#d4d4d4' }} />
+                          )}
+                        </>
+                      )}
+
+                      {/* SECCIONES DE CATEGORÍAS REGULARES */}
                       {categorySections.map(([categoryName, categoryProducts], index) => (
                         <div key={categoryName}>
                           <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 pb-2" style={{ color: 'var(--primary)' }}>

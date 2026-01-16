@@ -151,7 +151,12 @@ export default function StorePage() {
 
   let filteredProducts = products;
 
-  if (category !== 'all') {
+  // Filtro especial para OFERTAS & DESCUENTOS
+  if (category === 'descuentos') {
+    filteredProducts = filteredProducts.filter(
+      (p) => p.discountedPrice && p.discountedPrice > 0 && p.discountedPrice < p.price
+    );
+  } else if (category !== 'all') {
     filteredProducts = filteredProducts.filter((p) => p.category === category);
   }
 
@@ -218,6 +223,26 @@ export default function StorePage() {
                 >
                   Todas
                 </button>
+                
+                {/* Filtro especial OFERTAS & DESCUENTOS */}
+                <button
+                  onClick={() => setCategory('descuentos')}
+                  className={`px-4 py-2 rounded-full whitespace-nowrap font-bold transition-all shadow-md ${
+                    category === 'descuentos' ? 'text-white shadow-lg scale-105' : 'text-white hover:shadow-lg hover:scale-105'
+                  }`}
+                  style={category === 'descuentos' 
+                    ? { 
+                        background: `linear-gradient(135deg, ${categoryButtonColor} 0%, var(--accent-turquoise) 100%)`,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                      } 
+                    : { 
+                        background: `linear-gradient(135deg, ${categoryButtonColor} 0%, var(--accent-turquoise) 100%)`
+                      }
+                  }
+                >
+                  🎉 OFERTAS
+                </button>
+
                 {categories.map((cat) => (
                   <button
                     key={cat.id}
@@ -333,9 +358,19 @@ export default function StorePage() {
                 </div>
               ) : filteredProducts.length > 0 ? (
                 (() => {
+                  // Separar productos con descuento de los demás
+                  const productsWithDiscount = filteredProducts.filter(
+                    (p) => p.discountedPrice && p.discountedPrice > 0 && p.discountedPrice < p.price
+                  );
+                  
+                  const productsWithoutDiscount = filteredProducts.filter(
+                    (p) => !p.discountedPrice || p.discountedPrice <= 0 || p.discountedPrice >= p.price
+                  );
+
+                  // Agrupar productos sin descuento por categoría
                   const groupedByCategory = new Map<string, Product[]>();
 
-                  filteredProducts.forEach((product) => {
+                  productsWithoutDiscount.forEach((product) => {
                     const categoryName = categoriesMap.get(product.category) || 'Sin categoría';
                     if (!groupedByCategory.has(categoryName)) {
                       groupedByCategory.set(categoryName, []);
@@ -352,6 +387,37 @@ export default function StorePage() {
 
                   return (
                     <div className="space-y-8">
+                      {/* SECCIÓN DE OFERTAS Y DESCUENTOS - Aparece solo si hay productos con descuento */}
+                      {productsWithDiscount.length > 0 && (
+                        <>
+                          <div>
+                            <h3 
+                              className="text-2xl font-bold mb-4 pb-2 inline-block px-3 py-2 rounded-lg" 
+                              style={{ 
+                                color: '#fff',
+                                backgroundColor: categoryNameColor,
+                                backgroundImage: `linear-gradient(135deg, ${categoryNameColor} 0%, var(--accent-turquoise) 100%)`
+                              }}
+                            >
+                              🎉 OFERTAS & DESCUENTOS 🎉
+                            </h3>
+
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8 mt-4">
+                              {[...productsWithDiscount]
+                                .sort((a, b) => (a.price || 0) - (b.price || 0))
+                                .map((product) => (
+                                  <ProductCard key={product.id} product={product} storeId={store} />
+                                ))}
+                            </div>
+                          </div>
+
+                          {categorySections.length > 0 && (
+                            <div className="my-8 border-t-2" style={{ borderColor: '#d4d4d4' }} />
+                          )}
+                        </>
+                      )}
+
+                      {/* SECCIONES DE CATEGORÍAS REGULARES */}
                       {categorySections.map(([categoryName, categoryProducts], index) => (
                         <div key={categoryName}>
                           <h3 className="text-xl font-bold mb-4 pb-2" style={{ color: categoryNameColor }}>

@@ -9,6 +9,9 @@ export interface Product {
   stock: {
     [storeId: string]: number
   }
+  minStockByStore?: {
+    [storeId: string]: number
+  }
   image?: string
   sku?: string
   details?: string

@@ -39,36 +39,51 @@ function ProductsManager() {
     try {
       setDownloadingPDF(true)
       
-      // Obtener productos que no tienen stock en ninguna tienda
+      // Obtener productos que están por debajo del stock mínimo
       const allOutOfStockProducts = products.filter((p) => {
-        const dj = p.stock?.djcelutecnico ?? 0
-        const uba = p.stock?.ubatech ?? 0
-        return dj === 0 || uba === 0
+        const djMinStock = p.minStockByStore?.djcelutecnico ?? 0
+        const ubaMinStock = p.minStockByStore?.ubatech ?? 0
+        const djCurrentStock = p.stock?.djcelutecnico ?? 0
+        const ubaCurrentStock = p.stock?.ubatech ?? 0
+        return djCurrentStock < djMinStock || ubaCurrentStock < ubaMinStock
       })
       
       if (allOutOfStockProducts.length === 0) {
-        alert("No hay productos fuera de stock para descargar")
+        alert("No hay productos por debajo del stock mínimo para descargar")
         return
       }
 
-      // Crear mapa de tiendas sin stock por producto
-      const outOfStockByProduct = new Map<string, string[]>()
+      // Crear mapa de cantidad faltante por tienda y producto
+      const outOfStockByProduct = new Map<string, { store: string; needed: number }[]>()
       allOutOfStockProducts.forEach((p) => {
-        const storesWithoutStock: string[] = []
-        if ((p.stock?.djcelutecnico ?? 0) === 0) {
-          storesWithoutStock.push("DJCELUTECNICO")
+        const storesWithLowStock: { store: string; needed: number }[] = []
+        
+        const djMinStock = p.minStockByStore?.djcelutecnico ?? 0
+        const djCurrentStock = p.stock?.djcelutecnico ?? 0
+        if (djCurrentStock < djMinStock) {
+          storesWithLowStock.push({
+            store: "DJCELUTECNICO",
+            needed: djMinStock - djCurrentStock
+          })
         }
-        if ((p.stock?.ubatech ?? 0) === 0) {
-          storesWithoutStock.push("Ubatech+Pro")
+        
+        const ubaMinStock = p.minStockByStore?.ubatech ?? 0
+        const ubaCurrentStock = p.stock?.ubatech ?? 0
+        if (ubaCurrentStock < ubaMinStock) {
+          storesWithLowStock.push({
+            store: "Ubatech+Pro",
+            needed: ubaMinStock - ubaCurrentStock
+          })
         }
-        outOfStockByProduct.set(p.id, storesWithoutStock)
+        
+        outOfStockByProduct.set(p.id, storesWithLowStock)
       })
 
       const storesText = selectedStore === "all" ? "Todas las Tiendas" : selectedStore
       
       await generateOutOfStockPDF(allOutOfStockProducts, categoriesMap, {
-        fileName: `Productos_Fuera_de_Stock_${storesText}_${new Date().getTime()}.pdf`,
-        title: `Reporte de Productos Fuera de Stock (${storesText})`,
+        fileName: `Productos_Stock_Bajo_${storesText}_${new Date().getTime()}.pdf`,
+        title: `Reporte de Productos con Stock Bajo (${storesText})`,
         outOfStockByProduct
       })
     } catch (error) {
@@ -398,7 +413,10 @@ function ProductsManager() {
           if (selectedCategory === "all") {
             categoryMatch = true
           } else if (selectedCategory === "out-of-stock") {
-            categoryMatch = (product.stock?.[selectedStore] ?? 0) === 0
+            // Mostrar productos que están por debajo del stock mínimo
+            const minStock = product.minStockByStore?.[selectedStore] ?? 0
+            const currentStock = product.stock?.[selectedStore] ?? 0
+            categoryMatch = currentStock < minStock
           } else {
             categoryMatch = product.category === selectedCategory
           }
@@ -408,7 +426,7 @@ function ProductsManager() {
             product.description?.toLowerCase().includes(searchTerm.toLowerCase())
 
           return categoryMatch && searchMatch
-        })
+        });
 
         // Agrupar por categoría
         const groupedByCategory = new Map<string, Product[]>()
@@ -436,17 +454,31 @@ function ProductsManager() {
                   {categoryName}
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3">
-                  {categoryProducts.map((product) => (
+                  {categoryProducts.map((product) => {
+        const isOutOfStockFilter = selectedCategory === "out-of-stock"
+        let storesWithLowStock: { store: { id: string; name: string }; stockNeeded: number }[] = []
+        if (isOutOfStockFilter) {
+          stores.forEach((store) => {
+            const minStock = product.minStockByStore?.[store.id] ?? 0
+            const currentStock = product.stock?.[store.id] ?? 0
+            if (currentStock < minStock) {
+              storesWithLowStock.push({
+                store,
+                stockNeeded: minStock - currentStock
+              })
+            }
+          })
+        }
+        return (
             <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
               {product.image && (
-                <img src={product.image} alt={product.name} className="w-full h-24 object-contain p-2" />
+                <img src={product.image} alt={product.name} className="w-full h-24 object-contain p-2 bg-gray-50" />
               )}
               <div className="p-2 space-y-1 flex-1 flex flex-col">
-                <h3 className="font-bold text-xs" style={{ color: "var(--primary-dark)" }}>
+                <h3 className="font-bold text-xs line-clamp-2" style={{ color: "var(--primary-dark)" }}>
                   {product.name}
                 </h3>
-                <p className="text-xs text-gray-600 line-clamp-1">{product.description || "-"}</p>
-                <div className="mt-auto">
+                <div className="mt-2">
                   {product.discountedPrice && product.discountedPrice > 0 ? (
                     <div>
                       <p className="text-xs text-gray-500 line-through">
@@ -467,13 +499,26 @@ function ProductsManager() {
                     </p>
                   )}
                 </div>
-                <div className="text-xs space-y-0.5">
-                  {stores.map((store) => (
-                    <div key={store.id} className={`${(product.stock?.[store.id] ?? 0) === 0 ? "text-red-600 font-bold" : ""}`}>
-                      {store.name}: {product.stock?.[store.id] ?? 0}
+                {isOutOfStockFilter ? (
+                  <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                    <p className="text-xs font-semibold text-red-700 mb-1">Stock Bajo:</p>
+                    <div className="space-y-1">
+                      {storesWithLowStock.map((item) => (
+                        <div key={item.store.id} className="text-xs text-red-600 font-semibold">
+                          <span className="font-bold text-red-700">{item.store.name}:</span> Faltan <span className="font-bold text-lg text-red-600">{item.stockNeeded}</span> unidades
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-xs space-y-0.5">
+                    {stores.map((store) => (
+                      <div key={store.id} className={`${(product.stock?.[store.id] ?? 0) === 0 ? "text-red-600 font-bold" : ""}`}>
+                        {store.name}: {product.stock?.[store.id] ?? 0}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-1 pt-2">
                   <button
                     onClick={() => {
@@ -499,7 +544,8 @@ function ProductsManager() {
                 </div>
               </div>
             </div>
-                  ))}
+        )
+      })}
                 </div>
               </div>
             ))}
@@ -509,7 +555,11 @@ function ProductsManager() {
 
       {products.filter((p) => {
         if (selectedCategory === "all") return true
-        if (selectedCategory === "out-of-stock") return (p.stock?.[selectedStore] ?? 0) === 0
+        if (selectedCategory === "out-of-stock") {
+          const minStock = p.minStockByStore?.[selectedStore] ?? 0
+          const currentStock = p.stock?.[selectedStore] ?? 0
+          return currentStock < minStock
+        }
         return p.category === selectedCategory
       }).length === 0 && (
         <div className="text-center py-12 text-gray-500">

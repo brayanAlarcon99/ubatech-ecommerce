@@ -4,7 +4,7 @@ import type { Product } from '@/types'
 interface PDFGeneratorOptions {
   fileName?: string
   title?: string
-  outOfStockByProduct?: Map<string, string[]>
+  outOfStockByProduct?: Map<string, { store: string; needed: number }[]>
 }
 
 async function loadImage(url: string): Promise<string | null> {
@@ -78,7 +78,7 @@ export async function generateOutOfStockPDF(
   // Total de productos
   doc.setFontSize(11)
   doc.setFont('Helvetica', 'bold')
-  doc.text(`Total de productos fuera de stock: ${products.length}`, margin, yPosition)
+  doc.text(`Total de productos con stock bajo: ${products.length}`, margin, yPosition)
   yPosition += 10
 
   // Agrupar productos por categoría
@@ -152,11 +152,13 @@ export async function generateOutOfStockPDF(
       }).format(product.price) : 'N/A'
       infoLines.push(`Precio: $${formattedPrice}`)
 
-      // Agregar tiendas sin stock
+      // Agregar tiendas con stock bajo y cantidad faltante
       if (outOfStockByProduct && outOfStockByProduct.has(product.id)) {
-        const storesWithoutStock = outOfStockByProduct.get(product.id)
-        if (storesWithoutStock && storesWithoutStock.length > 0) {
-          infoLines.push(`Fuera de Stock: ${storesWithoutStock.join(', ')}`)
+        const storesWithLowStock = outOfStockByProduct.get(product.id)
+        if (storesWithLowStock && storesWithLowStock.length > 0) {
+          storesWithLowStock.forEach((item) => {
+            infoLines.push(`${item.store}: Faltan ${item.needed} unidades`)
+          })
         }
       }
 
