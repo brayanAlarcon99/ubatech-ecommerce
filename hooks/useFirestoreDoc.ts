@@ -117,7 +117,7 @@ export function useFirestoreDoc<T = any>(
     } finally {
       setLoading(false)
     }
-  }, [collectionName, docId, defaultValue, cache, cacheKey])
+  }, [collectionName, docId, cache, cacheKey])
 
   // Función para escuchar cambios en tiempo real
   const setupRealtime = useCallback(() => {
@@ -169,7 +169,7 @@ export function useFirestoreDoc<T = any>(
       setLoading(false)
       return null
     }
-  }, [collectionName, docId, defaultValue, cache, cacheKey])
+  }, [collectionName, docId, cache, cacheKey])
 
   // Effect para cargar los datos
   useEffect(() => {

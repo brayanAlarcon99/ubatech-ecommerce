@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useStoreInfo, type StoreInfo } from "@/hooks/use-store-info"
-import { Save, AlertCircle } from "lucide-react"
+import { Save, AlertCircle, Mail, Phone, MapPin, Clock, Share2 } from "lucide-react"
 
 export default function StoresSettings() {
   const [selectedStore, setSelectedStore] = useState<"djcelutecnico" | "ubatech">("djcelutecnico")
@@ -35,7 +35,7 @@ export default function StoresSettings() {
       if (success) {
         setSaveMessage({
           type: "success",
-          text: "Cambios guardados exitosamente",
+          text: "✓ Cambios guardados exitosamente",
         })
         setTimeout(() => setSaveMessage(null), 3000)
       } else {
@@ -101,7 +101,7 @@ export default function StoresSettings() {
                 : "bg-gray-200 text-gray-800 hover:bg-gray-300"
             }`}
           >
-            {store === "djcelutecnico" ? "DJCELUTECNICO" : "Ubatech+Pro"}
+            {store === "djcelutecnico" ? "🏪 DJCELUTECNICO" : "🏪 Ubatech+Pro"}
           </button>
         ))}
       </div>
@@ -121,10 +121,13 @@ export default function StoresSettings() {
       )}
 
       {formData && (
-        <div className="bg-white rounded-lg shadow-md p-8 space-y-6">
-          {/* Información Básica */}
-          <div>
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Información Básica</h2>
+        <div className="bg-white rounded-lg shadow-md p-8 space-y-8">
+          
+          {/* ==================== SECCIÓN 1: INFORMACIÓN BÁSICA ==================== */}
+          <div className="border-b border-gray-200 pb-8">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+              ℹ️ Información Básica
+            </h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -135,19 +138,7 @@ export default function StoresSettings() {
                   value={formData.name || ""}
                   onChange={(e) => handleInputChange("name", e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Descripción Corta
-                </label>
-                <textarea
-                  value={formData.description || ""}
-                  onChange={(e) => handleInputChange("description", e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white text-black"
-                  placeholder="Descripción que se muestra en la página pública"
+                  placeholder="Ej: Mi Tienda"
                 />
               </div>
 
@@ -160,193 +151,148 @@ export default function StoresSettings() {
                   onChange={(e) => handleInputChange("aboutUs", e.target.value)}
                   rows={5}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white text-black"
-                  placeholder="Ingresa la información sobre tu tienda que deseas mostrar a los clientes..."
+                  placeholder="Cuéntanos sobre tu tienda..."
                 />
-                <p className="text-sm text-gray-500 mt-2">Este texto se mostrará en la sección 'Sobre Nosotros' de tu tienda</p>
+                <p className="text-sm text-gray-500 mt-2">✓ Se mostrará en el footer de la tienda pública</p>
               </div>
             </div>
           </div>
 
-          {/* Configuración de Tienda */}
-          <div>
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Configuración de la Tienda</h2>
+          {/* ==================== SECCIÓN 2: INFORMACIÓN DE CONTACTO ==================== */}
+          <div className="border-b border-gray-200 pb-8">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+              <Mail size={20} /> Información de Contacto
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">Esta información se sincroniza automáticamente con el footer y se usa en toda la tienda</p>
             <div className="space-y-4">
+              
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Nombre de la Tienda (Configuración)
-                </label>
-                <input
-                  type="text"
-                  value={formData.storeName || ""}
-                  onChange={(e) => handleInputChange("storeName", e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
-                />
-                <p className="text-sm text-gray-500 mt-1">Nombre usado en configuraciones y correos</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email de la Tienda
-                </label>
-                <input
-                  type="email"
-                  value={formData.storeEmail || ""}
-                  onChange={(e) => handleInputChange("storeEmail", e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Teléfono de la Tienda
-                </label>
-                <input
-                  type="tel"
-                  value={formData.storePhone || ""}
-                  onChange={(e) => handleInputChange("storePhone", e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
-                />
-              </div>
-
-              {/* WhatsApp para Órdenes - DESTACADO */}
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-xl p-6 shadow-lg ring-2 ring-green-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="text-3xl">📱</div>
-                  <div>
-                    <label className="block text-lg font-bold text-green-800">
-                      🟢 WhatsApp para Órdenes de Compra
-                    </label>
-                    <p className="text-xs text-green-700 font-semibold">REQUERIDO - Clientes reciben el carrito aquí</p>
-                  </div>
-                </div>
-                
-                <input
-                  type="tel"
-                  value={formData.storeWhatsApp || ""}
-                  onChange={(e) => handleInputChange("storeWhatsApp", e.target.value)}
-                  placeholder="Ej: +57 3134588107"
-                  className="w-full px-4 py-3 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-green-400 bg-white text-black font-semibold text-lg shadow-md hover:border-green-400 transition-all"
-                />
-                
-                <div className="mt-3 bg-green-100 border-l-4 border-green-600 pl-3 py-2 rounded">
-                  <p className="text-sm text-green-800 font-semibold">
-                    💡 Tip: Los clientes verán "{formData.storeWhatsApp || 'tu número aquí'}" al completar la compra
-                  </p>
-                </div>
-                
-                <p className="text-xs text-green-700 mt-3 font-medium">
-                  ✓ Formato: +57 [código área] [número] o solo dígitos<br/>
-                  ✓ Mínimo 10 dígitos requerido<br/>
-                  ✓ Recibirás órdenes formateadas con productos y total
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Dirección
-                </label>
-                <textarea
-                  value={formData.storeAddress || ""}
-                  onChange={(e) => handleInputChange("storeAddress", e.target.value)}
-                  rows={2}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white text-black"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Horario de Atención
-                </label>
-                <input
-                  type="text"
-                  value={formData.storeHours || ""}
-                  onChange={(e) => handleInputChange("storeHours", e.target.value)}
-                  placeholder="Ej: Lunes - Viernes: 8am - 6pm"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Información de Contacto */}
-          <div>
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Información de Contacto</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email
+                  📧 Email
                 </label>
                 <input
                   type="email"
                   value={formData.email || ""}
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
+                  placeholder="contacto@tienda.com"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Teléfono
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-xl p-6 shadow-lg ring-2 ring-green-200">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="text-2xl">☎️</span> Número de Teléfono / WhatsApp
                 </label>
+                <p className="text-xs text-green-700 font-semibold mb-3">
+                  ⭐ Este número se usa en todas las páginas: contacto, carrito, checkout, footer, etc.
+                </p>
                 <input
                   type="tel"
                   value={formData.phone || ""}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
+                  className="w-full px-4 py-3 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-green-400 bg-white text-black font-semibold text-lg shadow-md hover:border-green-400 transition-all"
+                  placeholder="+57 3134588107"
                 />
+                <div className="mt-3 bg-green-100 border-l-4 border-green-600 pl-3 py-2 rounded">
+                  <p className="text-xs text-green-800 font-semibold">
+                    💡 Úsalo para: Llamadas, WhatsApp, contacto, carrito y checkout
+                  </p>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Dirección
+                  🏠 Dirección
                 </label>
                 <textarea
                   value={formData.address || ""}
                   onChange={(e) => handleInputChange("address", e.target.value)}
-                  rows={3}
+                  rows={2}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white text-black"
+                  placeholder="Calle 10 #7-39, Ubaté, Cundinamarca"
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  🗺️ Link de Google Maps
+                </label>
+                <input
+                  type="text"
+                  value={formData.mapsUrl || ""}
+                  onChange={(e) => handleInputChange("mapsUrl", e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black text-xs"
+                  placeholder="https://www.google.com/maps/search/..."
+                />
+                <p className="text-xs text-gray-500 mt-1">Pega aquí el link completo de Google Maps (click derecho en Maps → Compartir)</p>
+              </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  ⏰ Horario de Atención
+                </label>
+                <input
+                  type="text"
+                  value={formData.businessHours || ""}
+                  onChange={(e) => handleInputChange("businessHours", e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
+                  placeholder="Ej: Lunes - Viernes: 8am - 6pm, Sábado: 9am - 2pm"
+                />
+              </div>
             </div>
           </div>
-
-          {/* Redes Sociales */}
-          <div>
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Redes Sociales</h2>
+          <div className="border-b border-gray-200 pb-8">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+              <Share2 size={20} /> Redes Sociales
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">Agrega tus redes sociales. Los iconos aparecerán en el footer solo si tienen link</p>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Instagram (opcional)
+                  📘 Instagram
                 </label>
                 <input
                   type="text"
                   value={formData.instagram || ""}
                   onChange={(e) => handleInputChange("instagram", e.target.value)}
-                  placeholder="URL del perfil"
+                  placeholder="https://instagram.com/tutienda"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Facebook (opcional)
+                  🟦 Facebook
                 </label>
                 <input
                   type="text"
                   value={formData.facebook || ""}
                   onChange={(e) => handleInputChange("facebook", e.target.value)}
-                  placeholder="URL del perfil"
+                  placeholder="https://facebook.com/tutienda"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  🎵 TikTok
+                </label>
+                <input
+                  type="text"
+                  value={formData.tiktok || ""}
+                  onChange={(e) => handleInputChange("tiktok", e.target.value)}
+                  placeholder="https://tiktok.com/@tutienda"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
                 />
               </div>
             </div>
           </div>
 
-          {/* Colores y Estilos */}
+          {/* ==================== SECCIÓN 5: COLORES Y ESTILOS ==================== */}
           <div>
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Colores y Estilos</h2>
+            <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+              🎨 Colores y Estilos
+            </h2>
             <div className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>

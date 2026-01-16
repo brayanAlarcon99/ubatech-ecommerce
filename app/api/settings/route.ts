@@ -7,7 +7,6 @@ const STORE_CONFIGS = {
     storeName: "Ubatech+Pro",
     storeEmail: "info@ubatech.com",
     storePhone: "573134588107",
-    storeWhatsApp: "573134588107",
     storeAddress: "ubaté, colombia",
     storeHours: "Lunes - Viernes: 8am - 6pm",
     description: "Tienda especializada en tecnología e innovación",
@@ -16,7 +15,6 @@ const STORE_CONFIGS = {
     storeName: "DJ Celutecnico",
     storeEmail: "info@djcelutecnico.com",
     storePhone: "573134588107",
-    storeWhatsApp: "573134588107",
     storeAddress: "ubaté, colombia",
     storeHours: "Lunes - Viernes: 8am - 6pm",
     description: "Tu tienda especializada en celulares y accesorios",
@@ -66,7 +64,6 @@ export async function GET(request: NextRequest) {
       }
       
       console.log("[API Settings] Configuración cargada para tienda:", store, {
-        storeWhatsApp: mergedData.storeWhatsApp,
         storePhone: mergedData.storePhone,
       })
       

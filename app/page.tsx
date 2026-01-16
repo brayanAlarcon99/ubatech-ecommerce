@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { STORES } from '@/lib/config/stores';
+import { STORES_CONFIG } from '@/lib/config/constants';
 
 export default function Landing() {
 
@@ -15,20 +15,20 @@ export default function Landing() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
-          {Object.entries(STORES).map(([key, store]) => (
+          {Object.entries(STORES_CONFIG).map(([key, store]) => (
             <Link
               key={key}
-              href={`/${store.slug}`}
+              href={`/${store.id}`}
               className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 block"
             >
               <div 
                 className="p-6 sm:p-12 text-center min-h-[250px] sm:min-h-[300px] flex flex-col items-center justify-center"
-                style={{ backgroundColor: store.color }}
+                style={{ backgroundColor: store.primaryColor }}
               >
                 <div className="mb-3 sm:mb-6">
                   <div 
                     className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full flex items-center justify-center text-xl sm:text-2xl font-bold"
-                    style={{ color: store.color }}
+                    style={{ color: store.primaryColor }}
                   >
                     {store.name.charAt(0)}
                   </div>
@@ -37,7 +37,7 @@ export default function Landing() {
                 <p className="text-white text-opacity-90 mb-4 sm:mb-6 text-xs sm:text-base">{store.description}</p>
                 <span 
                   className="inline-block px-4 sm:px-6 py-2 bg-white rounded-lg font-semibold group-hover:scale-105 transition-transform text-xs sm:text-base"
-                  style={{ color: store.color }}
+                  style={{ color: store.primaryColor }}
                 >
                   Ir a {store.name}
                 </span>

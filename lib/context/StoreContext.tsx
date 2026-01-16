@@ -2,25 +2,25 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { STORES, DEFAULT_STORE, StoreId, StoreConfig } from '../config/stores';
+import { STORES_CONFIG, DEFAULT_STORE_ID, StoreConfig } from '../config/constants';
 import { getThemeConfig, ThemeConfig } from '../themes/themeConfig';
 
 interface StoreContextType {
-  currentStore: StoreId;
+  currentStore: string;
   storeConfig: StoreConfig;
   theme: ThemeConfig;
-  allStores: typeof STORES;
+  allStores: typeof STORES_CONFIG;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentStore, setCurrentStore] = useState<StoreId>(DEFAULT_STORE);
-  const [theme, setTheme] = useState<ThemeConfig>(getThemeConfig(DEFAULT_STORE));
+  const [currentStore, setCurrentStore] = useState<string>(DEFAULT_STORE_ID);
+  const [theme, setTheme] = useState<ThemeConfig>(getThemeConfig(DEFAULT_STORE_ID));
   const pathname = usePathname();
 
   useEffect(() => {
-    let storeId: StoreId = DEFAULT_STORE;
+    let storeId: string = DEFAULT_STORE_ID;
 
     if (pathname?.includes('/ubatech')) {
       storeId = 'ubatech';
@@ -34,9 +34,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const value: StoreContextType = {
     currentStore,
-    storeConfig: STORES[currentStore],
+    storeConfig: STORES_CONFIG[currentStore],
     theme,
-    allStores: STORES,
+    allStores: STORES_CONFIG,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

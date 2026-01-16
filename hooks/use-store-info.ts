@@ -7,22 +7,27 @@ export interface StoreInfo {
   id: string
   name: string
   email: string
+  /**
+   * ☎️ Teléfono / WhatsApp - Un único número para toda la tienda
+   * Se usa en:
+   * - Footer (contacto, llamadas)
+   * - Página de Contacto (llamadas y WhatsApp)
+   * - Carrito (enlace para editar)
+   * - Checkout (WhatsApp para enviar orden)
+   * - Cualquier otra página que necesite el número
+   */
   phone: string
   address: string
+  businessHours: string
+  mapsUrl: string
   logo: string
   primaryColor: string
   secondaryColor: string
   description: string
   aboutUs: string
-  whatsapp?: string
   instagram?: string
   facebook?: string
-  storeName?: string
-  storeEmail?: string
-  storePhone?: string
-  storeWhatsApp?: string
-  storeAddress?: string
-  storeHours?: string
+  tiktok?: string
 }
 
 export function useStoreInfo(storeId: string) {

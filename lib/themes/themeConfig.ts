@@ -1,4 +1,4 @@
-import { StoreId } from '../config/stores';
+import { StoreConfig } from '../config/constants';
 
 export interface ThemeConfig {
   primary: string;
@@ -9,7 +9,7 @@ export interface ThemeConfig {
   border: string;
 }
 
-const baseThemes: Record<StoreId, ThemeConfig> = {
+const baseThemes: Record<string, ThemeConfig> = {
   ubatech: {
     primary: '#000000',
     secondary: '#FFFFFF',
@@ -28,6 +28,6 @@ const baseThemes: Record<StoreId, ThemeConfig> = {
   },
 };
 
-export const getThemeConfig = (storeId: StoreId): ThemeConfig => {
+export const getThemeConfig = (storeId: string): ThemeConfig => {
   return baseThemes[storeId] || baseThemes.ubatech;
 };

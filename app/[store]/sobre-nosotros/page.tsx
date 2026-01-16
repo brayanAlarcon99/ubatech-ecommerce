@@ -20,7 +20,7 @@ export default function SobreNosotrosPage() {
         <div className="flex items-center justify-center min-h-screen">
           <p className="text-gray-600">Cargando información...</p>
         </div>
-        <Footer storeId={storeId} hideAboutUs={true} hideCopyright={true} />
+        <Footer storeId={storeId} />
       </>
     )
   }
@@ -32,7 +32,7 @@ export default function SobreNosotrosPage() {
         <div className="flex items-center justify-center min-h-screen">
           <p className="text-red-600">Error al cargar la información</p>
         </div>
-        <Footer storeId={storeId} hideAboutUs={true} hideCopyright={true} />
+        <Footer storeId={storeId} />
       </>
     )
   }
@@ -84,7 +84,7 @@ export default function SobreNosotrosPage() {
 
             <div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">Horario de Atención</h3>
-              <p className="text-gray-600">{storeInfo.storeHours}</p>
+              <p className="text-gray-600">{storeInfo.businessHours}</p>
             </div>
 
             <div className="pt-6 border-t border-gray-300">
@@ -102,7 +102,7 @@ export default function SobreNosotrosPage() {
           </div>
         </div>
       </main>
-      <Footer storeId={storeId} hideAboutUs={true} hideCopyright={true} />
+      <Footer storeId={storeId} />
     </>
   )
 }

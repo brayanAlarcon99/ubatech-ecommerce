@@ -3,7 +3,7 @@
  * Consolida toda la lógica de validación en un lugar
  */
 
-import { VALIDATION_RULES, isValidEmail as validateEmail, isValidPassword as validatePwd } from './config/constants'
+import { VALIDATION_RULES } from './config/constants'
 
 // ============================================================================
 // VALIDACIONES DE EMAIL
@@ -18,7 +18,7 @@ export function isValidEmail(email: string): boolean {
   if (!email || email.trim() === '') {
     return false
   }
-  return validateEmail(email)
+  return VALIDATION_RULES.EMAIL.PATTERN.test(email)
 }
 
 /**
@@ -54,7 +54,10 @@ export function isValidPassword(password: string): boolean {
   if (!password) {
     return false
   }
-  return validatePwd(password)
+  return (
+    password.length >= VALIDATION_RULES.PASSWORD.MIN_LENGTH &&
+    password.length <= VALIDATION_RULES.PASSWORD.MAX_LENGTH
+  )
 }
 
 /**

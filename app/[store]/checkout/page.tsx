@@ -5,16 +5,18 @@ import type React from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useCart } from '@/lib/cart-context';
+import { useStoreInfo } from '@/hooks/use-store-info';
 import Header from '@/components/header';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
-import { formatPriceWithCurrency, formatPrice } from '@/lib/format-price';
+import { formatPriceWithCurrency, formatPrice, formatPhoneForWhatsapp } from '@/lib/format-price';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const params = useParams();
   const store = params.store as string;
   const { cart, total, clearCart } = useCart();
+  const { storeInfo } = useStoreInfo(store);
   const [whatsappNumber, setWhatsappNumber] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
@@ -24,72 +26,20 @@ export default function CheckoutPage() {
   });
   const [loading, setLoading] = useState(false);
 
-  // Obtener nombre de tienda
-  const getStoreName = (storeSlug: string) => {
-    if (storeSlug === 'djcelutecnico') return 'DJ Celutecnico';
-    return 'Ubatech+Pro';
+  // Obtener el nombre de la tienda
+  const getStoreName = (storeSlug: string): string => {
+    if (storeSlug === 'djcelutecnico') return 'DJCELUTECNICO';
+    return storeInfo?.name || 'Tienda';
   };
 
-  // Cargar número de WhatsApp desde configuración
+  // Cargar número de teléfono desde storeInfo
   useEffect(() => {
-    const loadWhatsAppNumber = async () => {
-      try {
-        // Usar API con parámetro store para obtener configuración correcta
-        const response = await fetch(`/api/settings?store=${store}&t=${Date.now()}`, {
-          method: 'GET',
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-          },
-        });
-
-        if (response.ok) {
-          const settings = await response.json();
-          const rawNumber = settings.storeWhatsApp || '';
-
-          console.log('Raw WhatsApp number from settings:', rawNumber);
-
-          // Detectar si el número tiene placeholders (xxxx)
-          if (rawNumber.toLowerCase().includes('xxxx') || rawNumber.toLowerCase().includes('xxx')) {
-            console.error('Number contains placeholders (xxxx). This is a placeholder, not a real number.');
-            console.warn('Please update the WhatsApp number in admin settings with a real phone number.');
-            setWhatsappNumber('573187654321'); // Número por defecto
-          } else {
-            // Limpiar el número: remover espacios, guiones, paréntesis, pero mantener +
-            let cleanNumber = rawNumber
-              .replace(/\s/g, '') // Remover espacios
-              .replace(/[-()]/g, '') // Remover guiones y paréntesis
-              .trim();
-
-            // Extraer solo dígitos para validación
-            const digitsOnly = cleanNumber.replace(/\D/g, '');
-
-            console.log('Cleaned WhatsApp number:', cleanNumber);
-            console.log('Digits only:', digitsOnly);
-            console.log('Digits length:', digitsOnly.length);
-
-            // Validar que el número tenga al menos 10 dígitos
-            if (digitsOnly.length >= 10) {
-              // Si no comienza con +, agregamos el código de país de Colombia
-              const finalNumber = cleanNumber.startsWith('+') ? digitsOnly : '57' + digitsOnly;
-              setWhatsappNumber(finalNumber); // Guardar solo dígitos para WhatsApp API
-              console.log('✅ WhatsApp number loaded successfully:', finalNumber);
-            } else {
-              console.error('Invalid WhatsApp number length:', digitsOnly.length, 'Number:', rawNumber);
-              setWhatsappNumber('573187654321'); // Número por defecto
-            }
-          }
-        } else {
-          console.error('Failed to load settings:', response.status);
-          setWhatsappNumber('573187654321');
-        }
-      } catch (error) {
-        console.error('Error loading WhatsApp number:', error);
-        setWhatsappNumber('573187654321');
-      }
-    };
-    loadWhatsAppNumber();
-  }, []);
+    if (storeInfo?.phone) {
+      const formattedPhone = formatPhoneForWhatsapp(storeInfo.phone);
+      setWhatsappNumber(formattedPhone);
+      console.log('✅ Phone number loaded from storeInfo:', formattedPhone);
+    }
+  }, [storeInfo]);
 
   if (cart.length === 0) {
     return (

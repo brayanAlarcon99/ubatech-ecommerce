@@ -3,20 +3,20 @@
 import { useState, useEffect } from "react"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
-import { usePlatformInfo } from "@/hooks/use-platform-info"
 import { Mail, Phone, MapPin } from "lucide-react"
-import { useStoreSettings } from "@/hooks/use-store-settings"
+import { useStoreInfo } from "@/hooks/use-store-info"
+import { formatPhoneForWhatsapp } from "@/lib/format-price"
 
 export default function ContactenosPage() {
-  const { platformInfo, loading: platformLoading } = usePlatformInfo()
-  const { settings, loading: settingsLoading } = useStoreSettings()
+  const { storeInfo, loading } = useStoreInfo("ubatech")
   const [mounted, setMounted] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
+    email: "",
     message: "",
   })
   const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [formLoading, setFormLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Prevenir hydration mismatch
@@ -36,52 +36,35 @@ export default function ContactenosPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!formData.name || !formData.message) {
+
+    if (!formData.name || !formData.email || !formData.message) {
       setError("Por favor completa todos los campos")
       return
     }
 
-    setLoading(true)
+    setFormLoading(true)
     setError(null)
 
     try {
-      // Enviar mensaje a WhatsApp
-      const response = await fetch("/api/send-contact-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          message: formData.message,
-        }),
-      })
+      // Crear mensaje para WhatsApp con formato elegante
+      const whatsappMessage = encodeURIComponent(
+        `*Consulta de ${formData.name}*\n\n📧 Email: ${formData.email}\n\n💬 Mensaje:\n${formData.message}\n\n_Enviado desde ${storeInfo?.name}_`
+      )
+      const phoneFormatted = formatPhoneForWhatsapp(storeInfo?.phone || "")
+      
+      // Abrir WhatsApp con el mensaje
+      window.open(
+        `https://wa.me/${phoneFormatted}?text=${whatsappMessage}`,
+        "_blank"
+      )
 
-      if (response.ok) {
-        const data = await response.json()
-        
-        // Abrir WhatsApp en nueva pestaña
-        if (data.data?.whatsappUrl) {
-          window.open(data.data.whatsappUrl, "_blank")
-        }
-        
-        setSubmitted(true)
-        setFormData({
-          name: "",
-          message: "",
-        })
-        setTimeout(() => {
-          setSubmitted(false)
-        }, 5000)
-      } else {
-        setError("Error al enviar el mensaje. Intenta de nuevo.")
-      }
-    } catch (err) {
-      console.error("Error sending contact message:", err)
-      setError("Error al enviar el mensaje. Intenta de nuevo.")
+      setSubmitted(true)
+      setFormData({ name: "", email: "", message: "" })
+      setTimeout(() => setSubmitted(false), 5000)
+    } catch {
+      setError("Error al enviar el mensaje. Intenta nuevamente.")
     } finally {
-      setLoading(false)
+      setFormLoading(false)
     }
   }
 
@@ -119,10 +102,10 @@ export default function ContactenosPage() {
                 Email
               </h3>
               <a
-                href={`mailto:${settings.storeEmail}`}
+                href={`mailto:${storeInfo?.email}`}
                 className="text-gray-600 hover:underline break-all"
               >
-                {settings.storeEmail}
+                {storeInfo?.email}
               </a>
             </div>
 
@@ -137,10 +120,10 @@ export default function ContactenosPage() {
                 Teléfono
               </h3>
               <a
-                href={`tel:${settings.storePhone}`}
+                href={`tel:${storeInfo?.phone}`}
                 className="text-gray-600 hover:underline"
               >
-                {settings.storePhone}
+                {storeInfo?.phone}
               </a>
             </div>
 
@@ -155,12 +138,12 @@ export default function ContactenosPage() {
                 Ubicación
               </h3>
               <a
-                href="https://www.google.com/maps/search/Cl.+10+%23+7-39,+Ubat%C3%A9,+Villa+de+San+Diego+de+Ubat%C3%A9,+Cundinamarca+855P%2BRP"
+                href={storeInfo?.mapsUrl || "#"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-600 hover:text-blue-600 hover:underline transition-colors"
               >
-                {settings.storeAddress}
+                {storeInfo?.address}
               </a>
             </div>
               </>
@@ -175,14 +158,14 @@ export default function ContactenosPage() {
 
             {submitted && (
               <div className="mb-6 p-4 rounded-lg bg-green-100 border border-green-300 text-green-800">
-                ✅ Tu mensaje ha sido enviado correctamente. Nos pondremos en
+                ✓ Tu mensaje ha sido enviado correctamente. Nos pondremos en
                 contacto pronto.
               </div>
             )}
 
             {error && (
               <div className="mb-6 p-4 rounded-lg bg-red-100 border border-red-300 text-red-800">
-                ❌ {error}
+                ✕ {error}
               </div>
             )}
 
@@ -199,7 +182,23 @@ export default function ContactenosPage() {
                   className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 bg-white text-black"
                   style={{ borderColor: "var(--primary)" }}
                   placeholder="Juan Pérez"
-                  disabled={loading}
+                  disabled={formLoading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 bg-white text-black"
+                  style={{ borderColor: "var(--primary)" }}
+                  placeholder="tu@email.com"
+                  disabled={formLoading}
                 />
               </div>
 
@@ -215,27 +214,27 @@ export default function ContactenosPage() {
                   className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 bg-white text-black"
                   style={{ borderColor: "var(--primary)" }}
                   placeholder="Cuéntanos más sobre tu consulta..."
-                  disabled={loading}
+                  disabled={formLoading}
                 />
               </div>
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={formLoading}
                 className="w-full py-3 px-6 rounded-lg font-bold text-white transition-opacity"
                 style={{ 
                   backgroundColor: "var(--primary)",
-                  opacity: loading ? 0.6 : 1,
-                  cursor: loading ? 'not-allowed' : 'pointer'
+                  opacity: formLoading ? 0.6 : 1,
+                  cursor: formLoading ? 'not-allowed' : 'pointer'
                 }}
               >
-                {loading ? "Enviando..." : "Enviar Mensaje"}
+                {formLoading ? "Enviando..." : "Enviar Mensaje"}
               </button>
             </form>
           </div>
         </div>
       </main>
-      <Footer />
+      <Footer storeId="ubatech" />
     </>
   )
 }
