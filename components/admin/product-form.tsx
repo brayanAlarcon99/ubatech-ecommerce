@@ -25,6 +25,11 @@ interface CategoryData {
 const MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
 
 export default function ProductForm({ product, categories, onSave, onCancel }: ProductFormProps) {
+  // Convertir imagen antigua a array de imágenes si existe
+  const initialImages = product?.images ? 
+    product.images : 
+    (product?.image ? [product.image] : [])
+
   const [formData, setFormData] = useState({
     name: product?.name || "",
     description: product?.description || "",
@@ -34,22 +39,23 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     subcategory: product?.subcategory || "",
     stock: product?.stock || { djcelutecnico: 0, ubatech: 0 },
     minStockByStore: product?.minStockByStore || { djcelutecnico: 0, ubatech: 0 },
-    image: product?.image || "",
+    images: initialImages,
+    image: product?.image || "", // Mantener por compatibilidad
     sku: product?.sku || "",
     details: product?.details || "",
   })
-  const [imagePreview, setImagePreview] = useState<string>(product?.image || "")
-  const [loading, setLoading] = useState(false)
-  const [loadingCategories, setLoadingCategories] = useState(true)
-  const [categoryError, setCategoryError] = useState<string | null>(null)
-  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
-  const [categoriesData, setCategoriesData] = useState<CategoryData[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>(initialImages)
   const [imageInputFocus, setImageInputFocus] = useState(false)
   const [pasteMessage, setPasteMessage] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
   const [imageLoadSuccess, setImageLoadSuccess] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [discountPercentage, setDiscountPercentage] = useState<number>(0)
+  const [loading, setLoading] = useState(false)
+  const [loadingCategories, setLoadingCategories] = useState(true)
+  const [categoryError, setCategoryError] = useState<string | null>(null)
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
+  const [categoriesData, setCategoriesData] = useState<CategoryData[]>([])
 
   // Cargar datos de categorías y subcategorías
   useEffect(() => {
@@ -174,29 +180,34 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) {
+    if (file && file.type.startsWith("image/")) {
       // Validar tamaño de archivo
       if (file.size > MAX_IMAGE_SIZE) {
         const sizeMB = (file.size / (1024 * 1024)).toFixed(2)
         const limitMB = (MAX_IMAGE_SIZE / (1024 * 1024)).toFixed(2)
-        const errorMsg = `⚠️ Cambiar imagen: El archivo es demasiado grande (${sizeMB}MB). El límite máximo es ${limitMB}MB. Selecciona una imagen más pequeña o de menor resolución.`
+        const errorMsg = `⚠️ El archivo es demasiado grande (${sizeMB}MB). El límite máximo es ${limitMB}MB. Selecciona una imagen más pequeña o de menor resolución.`
         setImageError(errorMsg)
-        setImagePreview("")
-        setFormData((prev) => ({ ...prev, image: "" }))
-        setImageLoadSuccess(false)
         setPasteMessage(null)
+        return
+      }
+
+      // Verificar cantidad máxima de imágenes (máx 3)
+      if (imagePreviews.length >= 3) {
+        setImageError("⚠️ Máximo 3 imágenes permitidas por producto")
         return
       }
 
       const reader = new FileReader()
       reader.onload = (event) => {
         const result = event.target?.result as string
-        setImagePreview(result)
-        setFormData((prev) => ({ ...prev, image: result }))
+        setImagePreviews((prev) => [...prev, result])
+        setFormData((prev) => ({ 
+          ...prev, 
+          images: [...(prev.images || []), result]
+        }))
         setImageError(null)
         setImageLoadSuccess(true)
         setPasteMessage(null)
-        // Mostrar mensaje de éxito por 3 segundos
         setTimeout(() => setImageLoadSuccess(false), 3000)
       }
       reader.readAsDataURL(file)
@@ -207,7 +218,6 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     const items = e.clipboardData?.items
     if (!items) return
 
-    // Buscar una imagen en los elementos del portapapeles
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf("image") !== -1) {
         e.preventDefault()
@@ -217,24 +227,29 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
           if (file.size > MAX_IMAGE_SIZE) {
             const sizeMB = (file.size / (1024 * 1024)).toFixed(2)
             const limitMB = (MAX_IMAGE_SIZE / (1024 * 1024)).toFixed(2)
-            const errorMsg = `⚠️ Cambiar imagen: El archivo es demasiado grande (${sizeMB}MB). El límite máximo es ${limitMB}MB. Selecciona una imagen más pequeña o de menor resolución.`
+            const errorMsg = `⚠️ El archivo es demasiado grande (${sizeMB}MB). El límite máximo es ${limitMB}MB. Selecciona una imagen más pequeña o de menor resolución.`
             setImageError(errorMsg)
-            setImagePreview("")
-            setFormData((prev) => ({ ...prev, image: "" }))
-            setImageLoadSuccess(false)
             setPasteMessage(null)
+            return
+          }
+
+          // Verificar cantidad máxima de imágenes (máx 3)
+          if (imagePreviews.length >= 3) {
+            setImageError("⚠️ Máximo 3 imágenes permitidas por producto")
             return
           }
 
           const reader = new FileReader()
           reader.onload = (event) => {
             const result = event.target?.result as string
-            setImagePreview(result)
-            setFormData((prev) => ({ ...prev, image: result }))
+            setImagePreviews((prev) => [...prev, result])
+            setFormData((prev) => ({ 
+              ...prev, 
+              images: [...(prev.images || []), result]
+            }))
             setPasteMessage("✓ Imagen pegada correctamente")
             setImageError(null)
             setImageLoadSuccess(true)
-            // Limpiar mensaje después de 3 segundos
             setTimeout(() => {
               setPasteMessage(null)
               setImageLoadSuccess(false)
@@ -252,17 +267,19 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     setLoading(true)
     setSaveError(null)
     try {
-      // Validación de imagen
-      if (formData.image) {
-        const imageSizeBytes = formData.image.length
-        const MAX_BASE64_SIZE = 1048487 // bytes
-        
-        if (imageSizeBytes > MAX_BASE64_SIZE) {
-          const sizeMB = (imageSizeBytes / (1024 * 1024)).toFixed(2)
-          const limitMB = (MAX_BASE64_SIZE / (1024 * 1024)).toFixed(2)
-          setSaveError(`⚠️ Cambiar imagen: La imagen en base64 supera el límite máximo permitido (${limitMB}MB). Tamaño actual: ${sizeMB}MB. Por favor, selecciona una imagen más pequeña o de menor resolución.`)
-          setLoading(false)
-          return
+      // Validación de imágenes
+      if (imagePreviews.length > 0) {
+        for (let i = 0; i < imagePreviews.length; i++) {
+          const imageSizeBytes = imagePreviews[i].length
+          const MAX_BASE64_SIZE = 1048487 // bytes
+          
+          if (imageSizeBytes > MAX_BASE64_SIZE) {
+            const sizeMB = (imageSizeBytes / (1024 * 1024)).toFixed(2)
+            const limitMB = (MAX_BASE64_SIZE / (1024 * 1024)).toFixed(2)
+            setSaveError(`⚠️ La imagen ${i + 1} supera el límite máximo permitido (~1MB). Tamaño actual: ${sizeMB}MB. Por favor, selecciona una imagen más pequeña.`)
+            setLoading(false)
+            return
+          }
         }
       }
 
@@ -276,6 +293,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       // Asegurar que el precio se guarde como un número válido con máximo 2 decimales
       const dataToSave: Omit<Product, "id"> = {
         ...formData,
+        images: imagePreviews.length > 0 ? imagePreviews : undefined,
         price: Math.round(formData.price * 100) / 100, // Redondea a 2 decimales
         stock: {
           djcelutecnico: Math.floor(formData.stock.djcelutecnico || 0),
@@ -291,6 +309,11 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       if (formData.discountedPrice > 0) {
         dataToSave.discountedPrice = Math.round(formData.discountedPrice * 100) / 100
       }
+
+      // Eliminar el campo image antiguo si hay nuevas imágenes
+      if (imagePreviews.length > 0) {
+        delete (dataToSave as any).image
+      }
       
       onSave(dataToSave)
     } catch (error) {
@@ -298,7 +321,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       
       // Detectar error de tamaño de imagen
       if (errorMsg.includes("1048487") || errorMsg.includes("image") || errorMsg.includes("longer than")) {
-        setSaveError(`⚠️ Error al guardar: La imagen supera el límite máximo permitido (1MB). Por favor, cambia la imagen por una más pequeña.`)
+        setSaveError(`⚠️ Error al guardar: Una imagen supera el límite máximo permitido (1MB). Por favor, usa imágenes más pequeñas.`)
         console.error("[ProductForm] Image size error:", errorMsg)
       } else {
         setSaveError(`Error al guardar el producto: ${errorMsg}`)
@@ -594,20 +617,26 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                     if (file.size > MAX_IMAGE_SIZE) {
                       const sizeMB = (file.size / (1024 * 1024)).toFixed(2)
                       const limitMB = (MAX_IMAGE_SIZE / (1024 * 1024)).toFixed(2)
-                      const errorMsg = `⚠️ Cambiar imagen: El archivo es demasiado grande (${sizeMB}MB). El límite máximo es ${limitMB}MB. Selecciona una imagen más pequeña o de menor resolución.`
+                      const errorMsg = `⚠️ El archivo es demasiado grande (${sizeMB}MB). El límite máximo es ${limitMB}MB. Selecciona una imagen más pequeña o de menor resolución.`
                       setImageError(errorMsg)
-                      setImagePreview("")
-                      setFormData((prev) => ({ ...prev, image: "" }))
-                      setImageLoadSuccess(false)
                       setPasteMessage(null)
+                      return
+                    }
+
+                    // Verificar cantidad máxima de imágenes (máx 3)
+                    if (imagePreviews.length >= 3) {
+                      setImageError("⚠️ Máximo 3 imágenes permitidas por producto")
                       return
                     }
 
                     const reader = new FileReader()
                     reader.onload = (event) => {
                       const result = event.target?.result as string
-                      setImagePreview(result)
-                      setFormData((prev) => ({ ...prev, image: result }))
+                      setImagePreviews((prev) => [...prev, result])
+                      setFormData((prev) => ({ 
+                        ...prev, 
+                        images: [...(prev.images || []), result]
+                      }))
                       setPasteMessage("✓ Imagen cargada correctamente")
                       setImageError(null)
                       setImageLoadSuccess(true)
@@ -629,8 +658,13 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                     Haz clic para seleccionar o arrastra una imagen
                   </p>
                   <p className="text-xs text-gray-500 mb-3">
-                    También puedes pegar una imagen con <kbd className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">Ctrl+V</kbd>
+                    Máximo 3 imágenes. También puedes pegar con <kbd className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">Ctrl+V</kbd>
                   </p>
+                  {imagePreviews.length > 0 && (
+                    <p className="text-xs text-blue-600 font-semibold mb-3">
+                      {imagePreviews.length}/3 imágenes cargadas
+                    </p>
+                  )}
                 </div>
                 <input
                   type="file"
@@ -655,14 +689,6 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                 </div>
               )}
 
-              {formData.image && formData.image.length > 1048487 && (
-                <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-                  <p className="text-sm font-medium">
-                    ⚠️ Cambiar imagen: La imagen en base64 supera el límite máximo permitido (~1MB). Tamaño actual: {(formData.image.length / (1024 * 1024)).toFixed(2)}MB. Por favor, selecciona una imagen más pequeña o de menor resolución.
-                  </p>
-                </div>
-              )}
-
               {imageLoadSuccess && (
                 <p className="text-sm text-green-600 mt-2 font-medium">
                   ✓ Imagen cargada correctamente
@@ -675,25 +701,45 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                 </p>
               )}
 
-              {imagePreview && (
+              {imagePreviews.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-sm font-medium text-gray-600 mb-2">Vista previa:</p>
-                  <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border border-gray-200">
-                    <img src={imagePreview || "/placeholder.svg"} alt="Preview" className="w-full h-full object-contain" />
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-gray-600">
+                      Imágenes cargadas ({imagePreviews.length}/3):
+                    </p>
+                    <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      Primera = Portada
+                    </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImagePreview("")
-                      setFormData((prev) => ({ ...prev, image: "" }))
-                      setPasteMessage(null)
-                      setImageError(null)
-                      setImageLoadSuccess(false)
-                    }}
-                    className="mt-2 text-sm text-red-600 hover:text-red-800 font-medium"
-                  >
-                    ✕ Eliminar imagen
-                  </button>
+                  <div className="grid grid-cols-3 gap-3">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative">
+                        <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border border-gray-200">
+                          <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-contain" />
+                        </div>
+                        <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                          {index + 1}
+                        </div>
+                        {index === 0 && (
+                          <div className="absolute top-1 right-1 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                            Portada
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newPreviews = imagePreviews.filter((_, i) => i !== index)
+                            setImagePreviews(newPreviews)
+                            setFormData((prev) => ({ ...prev, images: newPreviews }))
+                            setImageError(null)
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

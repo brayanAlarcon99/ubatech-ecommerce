@@ -12,7 +12,8 @@ export interface Product {
   minStockByStore?: {
     [storeId: string]: number
   }
-  image?: string
+  image?: string // Mantener por compatibilidad con datos existentes
+  images?: string[] // Nueva: array de máx 3 imágenes (primera es portada)
   sku?: string
   details?: string
 }
