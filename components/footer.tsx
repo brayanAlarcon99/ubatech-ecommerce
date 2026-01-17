@@ -123,16 +123,17 @@ export default function Footer({ storeId = 'ubatech' }: { storeId?: string }) {
               {/* Redes Sociales - Solo si tienen link */}
               <div className="mt-6 space-y-3">
                 <h4 className="text-xs sm:text-sm font-semibold text-gray-700">Síguenos en redes</h4>
-                <div className="flex gap-3 flex-wrap">
+                <div className="flex gap-4 flex-wrap">
                   {instagram && (
                     <a 
                       href={instagram}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-pink-500 hover:text-pink-700 transition-colors"
+                      className="flex items-center gap-2 text-pink-500 hover:text-pink-700 transition-colors text-xs sm:text-sm"
                       title="Instagram"
                     >
                       <Instagram size={20} />
+                      <span>Instagram</span>
                     </a>
                   )}
                   {facebook && (
@@ -140,10 +141,11 @@ export default function Footer({ storeId = 'ubatech' }: { storeId?: string }) {
                       href={facebook}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 transition-colors"
+                      className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors text-xs sm:text-sm"
                       title="Facebook"
                     >
                       <Facebook size={20} />
+                      <span>Facebook</span>
                     </a>
                   )}
                   {tiktok && (
@@ -151,10 +153,11 @@ export default function Footer({ storeId = 'ubatech' }: { storeId?: string }) {
                       href={tiktok}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-black hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-2 text-black hover:text-gray-700 transition-colors text-xs sm:text-sm"
                       title="TikTok"
                     >
                       <Music size={20} />
+                      <span>TikTok</span>
                     </a>
                   )}
                 </div>
