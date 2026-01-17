@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { ShoppingCart, Plus, Minus, X } from "lucide-react"
 import type { Product } from "@/types"
 import { useCart } from "@/lib/cart-context"
@@ -15,6 +15,7 @@ interface ProductCardProps {
 }
 
 function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
+  const modalRef = useRef<HTMLDivElement>(null)
   const [quantity, setQuantity] = useState(1)
   const [showModal, setShowModal] = useState(false)
   const [categoryName, setCategoryName] = useState<string>("")
@@ -28,6 +29,22 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
       loadCategoryAndSubcategory()
     }
   }, [product.category, product.subcategory])
+
+  // Cerrar modal al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        setShowModal(false)
+      }
+    }
+
+    if (showModal) {
+      document.addEventListener("mousedown", handleClickOutside)
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside)
+      }
+    }
+  }, [showModal])
 
   useEffect(() => {
     loadLiveStock()
@@ -190,7 +207,7 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#fff' }}>
+          <div ref={modalRef} className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#fff' }}>
             <div className="flex justify-between items-center p-3 sm:p-6 border-b border-gray-200 sticky top-0 bg-white">
               <h2 className="text-lg sm:text-2xl font-bold" style={{ color: "var(--primary-dark)" }}>
                 Detalles del Producto
