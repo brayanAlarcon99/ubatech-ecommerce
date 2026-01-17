@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import type { Product, Subcategory } from "@/types"
 import { getSubcategoriesByCategory } from "@/lib/subcategories"
 import { getDb } from "@/lib/firebase"
@@ -27,6 +27,8 @@ const MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
 const MAX_BASE64_SIZE_MB = 0.9; // Dejar margen
 
 export default function ProductForm({ product, categories, onSave, onCancel }: ProductFormProps) {
+  const modalRef = useRef<HTMLDivElement>(null)
+  
   // Convertir imagen antigua a array de imágenes si existe
   const initialImages = product?.images ? 
     product.images : 
@@ -63,6 +65,20 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
   useEffect(() => {
     loadCategoriesData()
   }, [])
+
+  // Cerrar modal al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onCancel()
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [onCancel])
 
   // Calcular descuento cuando hay precio con descuento
   useEffect(() => {
@@ -144,6 +160,18 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target
+    
+    // Función para limpiar ceros iniciales en números
+    const removeLeadingZero = (val: string): string => {
+      const trimmed = val.trim()
+      if (!trimmed) return ""
+      // Si empieza con 0 y tiene más de un dígito, quitar el 0 inicial
+      if (trimmed.startsWith("0") && trimmed.length > 1 && trimmed[1] !== ".") {
+        return trimmed.replace(/^0+/, "")
+      }
+      return trimmed
+    }
+    
     if (name === "price" || name === "discountedPrice") {
       const numValue = sanitizePriceInput(value);
       setFormData((prev) => ({
@@ -152,8 +180,9 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       }))
     } else if (name.startsWith("stock_")) {
       const storeId = name.replace("stock_", "");
-      const numValue = parseFloat(value);
-      const finalValue = isNaN(numValue) ? 0 : Math.floor(numValue);
+      const cleanValue = removeLeadingZero(value)
+      const numValue = parseFloat(cleanValue);
+      const finalValue = isNaN(numValue) ? "" : Math.floor(numValue);
       setFormData((prev) => ({
         ...prev,
         stock: {
@@ -163,8 +192,9 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       }))
     } else if (name.startsWith("minStock_")) {
       const storeId = name.replace("minStock_", "");
-      const numValue = parseFloat(value);
-      const finalValue = isNaN(numValue) ? 0 : Math.floor(numValue);
+      const cleanValue = removeLeadingZero(value)
+      const numValue = parseFloat(cleanValue);
+      const finalValue = isNaN(numValue) ? "" : Math.floor(numValue);
       setFormData((prev) => ({
         ...prev,
         minStockByStore: {
@@ -363,7 +393,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div ref={modalRef} className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 space-y-4">
           <h2 className="text-2xl font-bold text-black" style={{ color: "var(--primary)" }}>
             {product ? "Editar Producto" : "Nuevo Producto"}
@@ -451,7 +481,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="stock_djcelutecnico"
-                        value={formData.stock.djcelutecnico || 0}
+                        value={formData.stock.djcelutecnico === 0 || formData.stock.djcelutecnico === "" ? "" : formData.stock.djcelutecnico}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
                         required
@@ -464,7 +494,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="minStock_djcelutecnico"
-                        value={formData.minStockByStore?.djcelutecnico || 0}
+                        value={formData.minStockByStore?.djcelutecnico === 0 || formData.minStockByStore?.djcelutecnico === "" ? "" : formData.minStockByStore?.djcelutecnico}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
                         required
@@ -486,7 +516,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="stock_ubatech"
-                        value={formData.stock.ubatech || 0}
+                        value={formData.stock.ubatech === 0 || formData.stock.ubatech === "" ? "" : formData.stock.ubatech}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
                         required
@@ -499,7 +529,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="minStock_ubatech"
-                        value={formData.minStockByStore?.ubatech || 0}
+                        value={formData.minStockByStore?.ubatech === 0 || formData.minStockByStore?.ubatech === "" ? "" : formData.minStockByStore?.ubatech}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
                         required
