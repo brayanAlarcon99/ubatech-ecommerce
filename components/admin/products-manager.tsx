@@ -471,8 +471,30 @@ function ProductsManager() {
         }
         return (
             <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
-              {product.image && (
-                <img src={product.image} alt={product.name} className="w-full h-24 object-contain p-2 bg-gray-50" />
+              {product.images && product.images.length > 0 && product.images[0] ? (
+                <img 
+                  src={product.images[0]} 
+                  alt={product.name} 
+                  className="w-full h-24 object-contain p-2 bg-gray-50" 
+                  onError={(e) => {
+                    console.error("Error loading product image:", product.images?.[0], e)
+                    e.currentTarget.style.display = "none"
+                  }}
+                />
+              ) : product.image ? (
+                <img 
+                  src={product.image} 
+                  alt={product.name} 
+                  className="w-full h-24 object-contain p-2 bg-gray-50"
+                  onError={(e) => {
+                    console.error("Error loading fallback image:", product.image, e)
+                    e.currentTarget.style.display = "none"
+                  }}
+                />
+              ) : (
+                <div className="w-full h-24 bg-gray-100 flex items-center justify-center font-bold text-2xl" style={{ color: "var(--accent-turquoise)" }}>
+                  {product.name.charAt(0)}
+                </div>
               )}
               <div className="p-2 space-y-1 flex-1 flex flex-col">
                 <h3 className="font-bold text-xs line-clamp-2" style={{ color: "var(--primary-dark)" }}>

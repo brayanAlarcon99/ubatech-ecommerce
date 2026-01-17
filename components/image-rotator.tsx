@@ -18,11 +18,24 @@ export default function ImageRotator({
 }: ImageRotatorProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAutoRotating, setIsAutoRotating] = useState(autoRotate)
+  const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set())
+  const [failedImages, setFailedImages] = useState<Set<number>>(new Set())
 
-  // Filtrar imágenes válidas
+  // Filtrar imágenes válidas y no vacías
   const validImages = images.filter((img) => img && img.length > 0)
 
-  // Si no hay imágenes, mostrar placeholder
+  // Manejar cuando se carga exitosamente una imagen
+  const handleImageLoad = (index: number) => {
+    setLoadedImages((prev) => new Set([...prev, index]))
+  }
+
+  // Manejar cuando falla la carga de una imagen
+  const handleImageError = (index: number, imageUrl: string) => {
+    console.error(`Error loading image at index ${index}:`, imageUrl)
+    setFailedImages((prev) => new Set([...prev, index]))
+  }
+
+  // Si no hay imágenes válidas, mostrar placeholder
   if (validImages.length === 0) {
     return (
       <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
@@ -44,9 +57,8 @@ export default function ImageRotator({
           src={validImages[0]}
           alt={title}
           className="w-full h-full object-contain"
-          onError={(e) => {
-            console.error("Error loading image:", e)
-          }}
+          onLoad={() => handleImageLoad(0)}
+          onError={() => handleImageError(0, validImages[0])}
         />
       </div>
     )
@@ -94,15 +106,25 @@ export default function ImageRotator({
     >
       {/* Imagen actual */}
       <div className="w-full h-full flex items-center justify-center bg-gray-50">
-        <img
-          key={currentIndex}
-          src={validImages[currentIndex]}
-          alt={`${title} - Imagen ${currentIndex + 1}`}
-          className="w-full h-full object-contain transition-opacity duration-300"
-          onError={(e) => {
-            console.error("Error loading image at index:", currentIndex, e)
-          }}
-        />
+        {!failedImages.has(currentIndex) ? (
+          <img
+            key={currentIndex}
+            src={validImages[currentIndex]}
+            alt={`${title} - Imagen ${currentIndex + 1}`}
+            className="w-full h-full object-contain transition-opacity duration-300"
+            onLoad={() => handleImageLoad(currentIndex)}
+            onError={() => handleImageError(currentIndex, validImages[currentIndex])}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <div className="text-center">
+              <svg className="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p className="text-gray-500 text-xs font-medium">Imagen no disponible</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Botón anterior */}

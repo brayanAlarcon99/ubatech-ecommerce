@@ -8,6 +8,7 @@ import { getSubcategoriesByCategory } from "@/lib/subcategories"
 import { getDb } from "@/lib/firebase"
 import { getDocs, collection, query, where } from "firebase/firestore"
 import { formatPrice, ensureNumberPrice, sanitizePriceInput } from "@/lib/format-price"
+import { compressImage, getBase64Size } from "@/lib/image-compression"
 
 interface ProductFormProps {
   product: Product | null
@@ -23,6 +24,7 @@ interface CategoryData {
 
 // Constante para el límite de tamaño de imagen en bytes (1MB - Límite de Firestore)
 const MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
+const MAX_BASE64_SIZE_MB = 0.9; // Dejar margen
 
 export default function ProductForm({ product, categories, onSave, onCancel }: ProductFormProps) {
   // Convertir imagen antigua a array de imágenes si existe
@@ -198,17 +200,29 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       }
 
       const reader = new FileReader()
-      reader.onload = (event) => {
-        const result = event.target?.result as string
-        setImagePreviews((prev) => [...prev, result])
-        setFormData((prev) => ({ 
-          ...prev, 
-          images: [...(prev.images || []), result]
-        }))
-        setImageError(null)
-        setImageLoadSuccess(true)
-        setPasteMessage(null)
-        setTimeout(() => setImageLoadSuccess(false), 3000)
+      reader.onload = async (event) => {
+        try {
+          let result = event.target?.result as string
+          
+          // Comprimir imagen si es necesario
+          if (getBase64Size(result) > MAX_BASE64_SIZE_MB) {
+            console.log("Comprimiendo imagen...")
+            result = await compressImage(result)
+          }
+          
+          setImagePreviews((prev) => [...prev, result])
+          setFormData((prev) => ({ 
+            ...prev, 
+            images: [...(prev.images || []), result]
+          }))
+          setImageError(null)
+          setImageLoadSuccess(true)
+          setPasteMessage(null)
+          setTimeout(() => setImageLoadSuccess(false), 3000)
+        } catch (error) {
+          console.error("Error comprimiendo imagen:", error)
+          setImageError("❌ Error al procesar la imagen. Intenta con otra.")
+        }
       }
       reader.readAsDataURL(file)
     }
@@ -240,20 +254,32 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
           }
 
           const reader = new FileReader()
-          reader.onload = (event) => {
-            const result = event.target?.result as string
-            setImagePreviews((prev) => [...prev, result])
-            setFormData((prev) => ({ 
-              ...prev, 
-              images: [...(prev.images || []), result]
-            }))
-            setPasteMessage("✓ Imagen pegada correctamente")
-            setImageError(null)
-            setImageLoadSuccess(true)
-            setTimeout(() => {
-              setPasteMessage(null)
-              setImageLoadSuccess(false)
-            }, 3000)
+          reader.onload = async (event) => {
+            try {
+              let result = event.target?.result as string
+              
+              // Comprimir imagen si es necesario
+              if (getBase64Size(result) > MAX_BASE64_SIZE_MB) {
+                console.log("Comprimiendo imagen pegada...")
+                result = await compressImage(result)
+              }
+              
+              setImagePreviews((prev) => [...prev, result])
+              setFormData((prev) => ({ 
+                ...prev, 
+                images: [...(prev.images || []), result]
+              }))
+              setPasteMessage("✓ Imagen pegada correctamente")
+              setImageError(null)
+              setImageLoadSuccess(true)
+              setTimeout(() => {
+                setPasteMessage(null)
+                setImageLoadSuccess(false)
+              }, 3000)
+            } catch (error) {
+              console.error("Error al procesar imagen pegada:", error)
+              setImageError("❌ Error al procesar la imagen pegada. Intenta con otra.")
+            }
           }
           reader.readAsDataURL(file)
         }
@@ -267,19 +293,22 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     setLoading(true)
     setSaveError(null)
     try {
-      // Validación de imágenes
+      // Validación de imágenes - usar getBase64Size para mejor precisión
       if (imagePreviews.length > 0) {
+        let hasOversizedImage = false
         for (let i = 0; i < imagePreviews.length; i++) {
-          const imageSizeBytes = imagePreviews[i].length
-          const MAX_BASE64_SIZE = 1048487 // bytes
+          const imageSizeMB = getBase64Size(imagePreviews[i])
           
-          if (imageSizeBytes > MAX_BASE64_SIZE) {
-            const sizeMB = (imageSizeBytes / (1024 * 1024)).toFixed(2)
-            const limitMB = (MAX_BASE64_SIZE / (1024 * 1024)).toFixed(2)
-            setSaveError(`⚠️ La imagen ${i + 1} supera el límite máximo permitido (~1MB). Tamaño actual: ${sizeMB}MB. Por favor, selecciona una imagen más pequeña.`)
-            setLoading(false)
-            return
+          if (imageSizeMB > MAX_BASE64_SIZE_MB) {
+            setSaveError(`⚠️ La imagen ${i + 1} supera el límite máximo permitido (~0.9MB). Tamaño actual: ${imageSizeMB.toFixed(2)}MB. Por favor, selecciona una imagen más pequeña.`)
+            hasOversizedImage = true
+            break
           }
+        }
+        
+        if (hasOversizedImage) {
+          setLoading(false)
+          return
         }
       }
 

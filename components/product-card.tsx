@@ -103,20 +103,28 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
         style={{ backgroundColor: '#fff' }}
       >
         {/* Mostrar portada (primera imagen) o imagen antigua */}
-        {product.images && product.images.length > 0 ? (
-          <div className="w-full h-24 sm:h-40 bg-white flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#fff' }}>
+        {product.images && product.images.length > 0 && product.images[0] ? (
+          <div className="w-full h-24 sm:h-40 bg-white flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ backgroundColor: '#fff' }}>
             <img
               src={product.images[0]}
               alt={product.name}
               className="w-full h-full object-contain hover:scale-105 transition-transform p-1"
+              onError={(e) => {
+                console.error("Error loading product image:", product.images?.[0], e)
+                e.currentTarget.style.display = "none"
+              }}
             />
           </div>
         ) : product.image ? (
-          <div className="w-full h-24 sm:h-40 bg-white flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#fff' }}>
+          <div className="w-full h-24 sm:h-40 bg-white flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ backgroundColor: '#fff' }}>
             <img
               src={product.image}
               alt={product.name}
               className="w-full h-full object-contain hover:scale-105 transition-transform p-1"
+              onError={(e) => {
+                console.error("Error loading fallback image:", product.image, e)
+                e.currentTarget.style.display = "none"
+              }}
             />
           </div>
         ) : (
@@ -199,7 +207,7 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div className="flex items-center justify-center bg-white rounded-lg p-4" style={{ backgroundColor: '#fff' }}>
                   {/* Mostrar ImageRotator si hay múltiples imágenes, sino mostrar imagen única */}
-                  {product.images && product.images.length > 0 ? (
+                  {product.images && product.images.length > 0 && product.images.some(img => img && img.length > 0) ? (
                     <div className="w-full h-64 sm:h-80">
                       <ImageRotator
                         images={product.images}
@@ -213,6 +221,10 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
                       src={product.image}
                       alt={product.name}
                       className="max-w-full h-auto rounded-lg"
+                      onError={(e) => {
+                        console.error("Error loading image in modal:", product.image, e)
+                        e.currentTarget.style.display = "none"
+                      }}
                     />
                   ) : (
                     <div
