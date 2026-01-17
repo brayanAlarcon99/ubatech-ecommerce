@@ -182,7 +182,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       const storeId = name.replace("stock_", "");
       const cleanValue = removeLeadingZero(value)
       const numValue = parseFloat(cleanValue);
-      const finalValue = isNaN(numValue) ? "" : Math.floor(numValue);
+      const finalValue = isNaN(numValue) ? 0 : Math.floor(numValue);
       setFormData((prev) => ({
         ...prev,
         stock: {
@@ -194,7 +194,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       const storeId = name.replace("minStock_", "");
       const cleanValue = removeLeadingZero(value)
       const numValue = parseFloat(cleanValue);
-      const finalValue = isNaN(numValue) ? "" : Math.floor(numValue);
+      const finalValue = isNaN(numValue) ? 0 : Math.floor(numValue);
       setFormData((prev) => ({
         ...prev,
         minStockByStore: {
