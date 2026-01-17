@@ -2,13 +2,18 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { ShoppingCart } from "lucide-react"
+import { ShoppingCart, Search } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { useStoreSettings } from "@/hooks/use-store-settings"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 
-export default function Header() {
+interface HeaderProps {
+  searchTerm?: string
+  onSearchChange?: (term: string) => void
+}
+
+export default function Header({ searchTerm = "", onSearchChange }: HeaderProps) {
   const { cart } = useCart()
   const { settings } = useStoreSettings()
   const router = useRouter()
@@ -62,7 +67,7 @@ export default function Header() {
         transform: isVisible ? "translateY(0)" : "translateY(-100%)"
       }}
     >
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4 flex items-center justify-between gap-2 sm:gap-3">
         <Link href={`/${currentStore}`} className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <Image 
             src={currentStore === 'djcelutecnico' ? "/logo-djcelutecnico.jpg" : "/logo-ubatech.png"} 
@@ -78,7 +83,32 @@ export default function Header() {
           </div>
         </Link>
 
-        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+        <div className="flex items-center" style={{ gap: "10px" }}>
+          <div className="flex items-center flex-1 max-w-xs">
+            <div className="relative w-full">
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={searchTerm}
+              onChange={(e) => onSearchChange?.(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 bg-white text-black placeholder-gray-400 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all text-xs sm:text-sm"
+              style={{
+                borderColor: searchTerm ? "#d1d5db" : "#e5e7eb",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "#d1d5db"
+                e.currentTarget.style.boxShadow = "0 0 0 2px rgba(0,0,0,0.05)"
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "#e5e7eb"
+                e.currentTarget.style.boxShadow = "none"
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center flex-shrink-0">
           <Link
             href={pathname?.includes('/carrito') ? pathname : `/${currentStore}/carrito`}
             className="relative flex items-center gap-1 sm:gap-2 p-1.5 sm:p-2 rounded-lg transition-colors text-xs sm:text-base"
@@ -98,6 +128,7 @@ export default function Header() {
               </span>
             )}
           </Link>
+        </div>
         </div>
       </div>
     </header>

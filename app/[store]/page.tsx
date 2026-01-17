@@ -191,7 +191,7 @@ export default function StorePage() {
         </div>
       ) : (
         <>
-          <Header />
+          <Header searchTerm={searchTerm} onSearchChange={setSearchTerm} />
 
           {showHero && <Hero storeId={store} />}
 
@@ -201,6 +201,7 @@ export default function StorePage() {
               <h2 className="text-2xl font-bold mb-3" style={{ color: titleColor }}>
                 Nuestros Productos
               </h2>
+              
               <div className="flex items-center justify-between gap-2 mb-2">
                 <p className="text-sm font-medium text-black">Categorías</p>
                 {subcategories.length > 0 && (
