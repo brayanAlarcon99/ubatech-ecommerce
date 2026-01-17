@@ -481,7 +481,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="stock_djcelutecnico"
-                        value={formData.stock.djcelutecnico === 0 || formData.stock.djcelutecnico === "" ? "" : formData.stock.djcelutecnico}
+                        value={formData.stock.djcelutecnico === 0 ? "" : formData.stock.djcelutecnico}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
                         required
@@ -494,7 +494,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="minStock_djcelutecnico"
-                        value={formData.minStockByStore?.djcelutecnico === 0 || formData.minStockByStore?.djcelutecnico === "" ? "" : formData.minStockByStore?.djcelutecnico}
+                        value={formData.minStockByStore?.djcelutecnico === 0 ? "" : formData.minStockByStore?.djcelutecnico}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
                         required
@@ -516,7 +516,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="stock_ubatech"
-                        value={formData.stock.ubatech === 0 || formData.stock.ubatech === "" ? "" : formData.stock.ubatech}
+                        value={formData.stock.ubatech === 0 ? "" : formData.stock.ubatech}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
                         required
@@ -529,7 +529,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="minStock_ubatech"
-                        value={formData.minStockByStore?.ubatech === 0 || formData.minStockByStore?.ubatech === "" ? "" : formData.minStockByStore?.ubatech}
+                        value={formData.minStockByStore?.ubatech === 0 ? "" : formData.minStockByStore?.ubatech}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
                         required
