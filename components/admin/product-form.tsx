@@ -165,9 +165,12 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     const removeLeadingZero = (val: string): string => {
       const trimmed = val.trim()
       if (!trimmed) return ""
-      // Si empieza con 0 y tiene más de un dígito, quitar el 0 inicial
+      // Si empieza con 0 y tiene más de un dígito, quitar TODOS los ceros iniciales
       if (trimmed.startsWith("0") && trimmed.length > 1 && trimmed[1] !== ".") {
-        return trimmed.replace(/^0+/, "")
+        // Usar replace con regex para remover todos los ceros iniciales
+        const cleaned = trimmed.replace(/^0+/, "")
+        // Si el resultado está vacío (ej: "000"), retornar "0"
+        return cleaned || "0"
       }
       return trimmed
     }
@@ -180,8 +183,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       }))
     } else if (name.startsWith("stock_")) {
       const storeId = name.replace("stock_", "");
-      const cleanValue = removeLeadingZero(value)
-      const numValue = parseFloat(cleanValue);
+      // Primero limpiar ceros iniciales
+      let cleanValue = removeLeadingZero(value)
+      // Luego convertir a número
+      const numValue = cleanValue === "" ? NaN : parseFloat(cleanValue);
       const finalValue = isNaN(numValue) ? 0 : Math.floor(numValue);
       setFormData((prev) => ({
         ...prev,
@@ -192,8 +197,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       }))
     } else if (name.startsWith("minStock_")) {
       const storeId = name.replace("minStock_", "");
-      const cleanValue = removeLeadingZero(value)
-      const numValue = parseFloat(cleanValue);
+      // Primero limpiar ceros iniciales
+      let cleanValue = removeLeadingZero(value)
+      // Luego convertir a número
+      const numValue = cleanValue === "" ? NaN : parseFloat(cleanValue);
       const finalValue = isNaN(numValue) ? 0 : Math.floor(numValue);
       setFormData((prev) => ({
         ...prev,
@@ -481,10 +488,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="stock_djcelutecnico"
-                        value={formData.stock.djcelutecnico === 0 ? "" : formData.stock.djcelutecnico}
+                        value={formData.stock.djcelutecnico}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                        required
+                        placeholder="0"
                       />
                     </div>
 
@@ -494,10 +501,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="minStock_djcelutecnico"
-                        value={formData.minStockByStore?.djcelutecnico === 0 ? "" : formData.minStockByStore?.djcelutecnico}
+                        value={formData.minStockByStore?.djcelutecnico}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                        required
+                        placeholder="0"
                       />
                       <p className="text-xs text-gray-500 mt-1">Cantidad mínima de productos que debe haber en esta tienda</p>
                     </div>
@@ -516,10 +523,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="stock_ubatech"
-                        value={formData.stock.ubatech === 0 ? "" : formData.stock.ubatech}
+                        value={formData.stock.ubatech}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                        required
+                        placeholder="0"
                       />
                     </div>
 
@@ -529,10 +536,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                       <input
                         type="number"
                         name="minStock_ubatech"
-                        value={formData.minStockByStore?.ubatech === 0 ? "" : formData.minStockByStore?.ubatech}
+                        value={formData.minStockByStore?.ubatech}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                        required
+                        placeholder="0"
                       />
                       <p className="text-xs text-gray-500 mt-1">Cantidad mínima de productos que debe haber en esta tienda</p>
                     </div>
