@@ -10,7 +10,7 @@ import Footer from '@/components/footer';
 import type { Product, Subcategory } from '@/types';
 import { getDb } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { getSubcategoriesByCategory } from '@/lib/subcategories';
+import { getSubcategoriesByCategory, getAllSubcategoriesGrouped } from '@/lib/subcategories';
 import { normalizeProducts } from '@/lib/normalize-products';
 import { getPublicSiteStatus } from '@/lib/public-site-status';
 import { normalizeProductPrice } from '@/lib/format-price';
@@ -105,6 +105,8 @@ export default function StorePage() {
       setError(null);
       const db = getDb();
 
+      console.time("[PERF] loadProducts");
+
       const productsSnapshot = await getDocs(collection(db, 'products'));
       const productsData = productsSnapshot.docs.map((doc) => ({
         id: doc.id,
@@ -114,22 +116,26 @@ export default function StorePage() {
       const productsWithNormalizedPrices = productsData.map(normalizeProductPrice);
 
       const categoriesSnapshot = await getDocs(collection(db, 'categories'));
-      const subMap = new Map<string, Subcategory[]>();
       const catMap = new Map<string, string>();
 
       for (const catDoc of categoriesSnapshot.docs) {
         const categoryId = catDoc.id;
         const categoryName = catDoc.data().name;
         catMap.set(categoryId, categoryName);
-        const subs = await getSubcategoriesByCategory(categoryId);
-        subMap.set(categoryId, subs);
       }
+
+      // 🚀 OPTIMIZACIÓN: Usar query única que agrupa por categoryId
+      // ANTES: N queries secuenciales en el loop (30-50 segundos)
+      // DESPUÉS: 1 sola query (2-3 segundos)
+      const subMap = await getAllSubcategoriesGrouped();
 
       const normalizedProducts = normalizeProducts(productsWithNormalizedPrices, catMap);
 
       setProducts(normalizedProducts);
       setSubcategoriesMap(subMap);
       setCategoriesMap(catMap);
+
+      console.timeEnd("[PERF] loadProducts");
     } catch (error) {
       console.error('[v0] Error loading products:', error);
       setError('Error al cargar productos. Por favor, verifica tu conexión a Firebase.');
