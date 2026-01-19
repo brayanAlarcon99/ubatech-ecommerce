@@ -30,6 +30,9 @@ function ProductsManager() {
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [showStockPanel, setShowStockPanel] = useState<{ open: boolean, product: Product | null }>({ open: false, product: null })
   const [stockInput, setStockInput] = useState({ tienda: "djcelutecnico", cantidad: 0 })
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null)
+  const [fixingData, setFixingData] = useState(false)
+  const [fixMessage, setFixMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   useEffect(() => {
     loadData()
@@ -94,7 +97,38 @@ function ProductsManager() {
     }
   }
 
-  async function loadData() {
+  async function handleFixProductsData() {
+    try {
+      setFixingData(true)
+      setFixMessage(null)
+
+      const response = await fetch("/api/admin/fix-products-data")
+      const result = await response.json()
+
+      if (result.success) {
+        setFixMessage({
+          type: "success",
+          text: `✅ Reparación completada: ${result.stats.fixed} productos fijos de ${result.stats.total} total`,
+        })
+        // Recargar datos
+        await loadData()
+      } else {
+        setFixMessage({
+          type: "error",
+          text: `❌ Error: ${result.error}`,
+        })
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Error desconocido"
+      console.error("[ProductsManager] Error fixing data:", error)
+      setFixMessage({
+        type: "error",
+        text: `❌ Error al reparar: ${errorMsg}`,
+      })
+    } finally {
+      setFixingData(false)
+    }
+  }
     try {
       setLoading(true)
       setError(null)
@@ -147,25 +181,61 @@ function ProductsManager() {
 
   async function handleSaveProduct(productData: Omit<Product, "id">) {
     try {
+      setSaveErrorMessage(null)
       const db = getDb()
+      
+      // 🚀 VALIDACIÓN: Verificar datos requeridos
+      if (!productData.name || productData.name.trim() === "") {
+        throw new Error("El nombre del producto es obligatorio")
+      }
+      
+      if (!productData.category || productData.category.trim() === "") {
+        throw new Error("Debes seleccionar una categoría")
+      }
+      
+      if ((productData.price ?? 0) <= 0) {
+        throw new Error("El precio debe ser mayor a 0")
+      }
+      
+      // Validar que al menos un stock sea mayor a 0
+      const djStock = productData.stock?.djcelutecnico ?? 0
+      const ubaStock = productData.stock?.ubatech ?? 0
+      
+      if (djStock === 0 && ubaStock === 0) {
+        throw new Error("Debes agregar stock a al menos una tienda")
+      }
       
       // Limpiar campos undefined para evitar errores de Firestore
       const cleanedData = Object.fromEntries(
         Object.entries(productData).filter(([_, value]) => value !== undefined)
       )
       
+      // 🚀 ASEGURAR que stock y minStockByStore sean objetos válidos
+      if (!cleanedData.stock) {
+        cleanedData.stock = { djcelutecnico: 0, ubatech: 0 }
+      }
+      if (!cleanedData.minStockByStore) {
+        cleanedData.minStockByStore = { djcelutecnico: 0, ubatech: 0 }
+      }
+      
+      console.log("[ProductsManager] Guardando producto:", cleanedData)
+      
       if (editingProduct) {
         await updateDoc(doc(db, "products", editingProduct.id), cleanedData)
+        console.log("[ProductsManager] Producto actualizado:", editingProduct.id)
       } else {
-        await addDoc(collection(db, "products"), cleanedData)
+        const docRef = await addDoc(collection(db, "products"), cleanedData)
+        console.log("[ProductsManager] Producto creado:", docRef.id)
       }
+      
       setShowForm(false)
       setEditingProduct(null)
+      setSaveErrorMessage(null)
       await loadData()
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
-      console.error("[ProductsManager] Error saving product:", error)
-      throw error
+      console.error("[ProductsManager] Error saving product:", error, errorMsg)
+      setSaveErrorMessage(errorMsg)
     }
   }
 
@@ -327,6 +397,41 @@ function ProductsManager() {
         </div>
       )}
 
+      {/* 🚀 Mostrar errores de guardado */}
+      {saveErrorMessage && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex justify-between items-center">
+          <div>
+            <p className="font-semibold">❌ Error al guardar producto:</p>
+            <p className="text-red-600 font-semibold mt-1">{saveErrorMessage}</p>
+          </div>
+          <button
+            onClick={() => setSaveErrorMessage(null)}
+            className="text-red-700 hover:text-red-900 font-bold ml-4"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* 🚀 Mostrar mensaje de reparación */}
+      {fixMessage && (
+        <div
+          className={`px-4 py-3 rounded mb-4 flex justify-between items-center border ${
+            fixMessage.type === "success"
+              ? "bg-green-100 border-green-400 text-green-700"
+              : "bg-red-100 border-red-400 text-red-700"
+          }`}
+        >
+          <p className="font-semibold">{fixMessage.text}</p>
+          <button
+            onClick={() => setFixMessage(null)}
+            className="font-bold ml-4 hover:opacity-70"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Encabezado y controles */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 py-2">
         <h1 className="font-bold text-lg sm:text-2xl md:text-3xl" style={{ color: "var(--primary-dark)" }}>
@@ -351,6 +456,16 @@ function ProductsManager() {
               {downloadingPDF ? "Descargando..." : "Descargar PDF"}
             </button>
           )}
+          
+          {/* 🚀 Botón para reparar datos de productos */}
+          <button
+            onClick={handleFixProductsData}
+            disabled={fixingData}
+            className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-orange-600 hover:bg-orange-700"
+            title="Reparar datos inconsistentes en productos (stock, minStockByStore)"
+          >
+            {fixingData ? "🔧 Reparando..." : "🔧 Reparar Datos"}
+          </button>
           <button
             onClick={() => {
               setShowForm(true)
