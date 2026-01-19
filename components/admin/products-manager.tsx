@@ -31,8 +31,6 @@ function ProductsManager() {
   const [showStockPanel, setShowStockPanel] = useState<{ open: boolean, product: Product | null }>({ open: false, product: null })
   const [stockInput, setStockInput] = useState({ tienda: "djcelutecnico", cantidad: 0 })
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null)
-  const [fixingData, setFixingData] = useState(false)
-  const [fixMessage, setFixMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   useEffect(() => {
     loadData()
@@ -97,38 +95,9 @@ function ProductsManager() {
     }
   }
 
-  async function handleFixProductsData() {
-    try {
-      setFixingData(true)
-      setFixMessage(null)
 
-      const response = await fetch("/api/admin/fix-products-data")
-      const result = await response.json()
 
-      if (result.success) {
-        setFixMessage({
-          type: "success",
-          text: `✅ Reparación completada: ${result.stats.fixed} productos fijos de ${result.stats.total} total`,
-        })
-        // Recargar datos
-        await loadData()
-      } else {
-        setFixMessage({
-          type: "error",
-          text: `❌ Error: ${result.error}`,
-        })
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Error desconocido"
-      console.error("[ProductsManager] Error fixing data:", error)
-      setFixMessage({
-        type: "error",
-        text: `❌ Error al reparar: ${errorMsg}`,
-      })
-    } finally {
-      setFixingData(false)
-    }
-  }
+  async function loadData() {
     try {
       setLoading(true)
       setError(null)
@@ -195,14 +164,6 @@ function ProductsManager() {
       
       if ((productData.price ?? 0) <= 0) {
         throw new Error("El precio debe ser mayor a 0")
-      }
-      
-      // Validar que al menos un stock sea mayor a 0
-      const djStock = productData.stock?.djcelutecnico ?? 0
-      const ubaStock = productData.stock?.ubatech ?? 0
-      
-      if (djStock === 0 && ubaStock === 0) {
-        throw new Error("Debes agregar stock a al menos una tienda")
       }
       
       // Limpiar campos undefined para evitar errores de Firestore
@@ -413,24 +374,7 @@ function ProductsManager() {
         </div>
       )}
 
-      {/* 🚀 Mostrar mensaje de reparación */}
-      {fixMessage && (
-        <div
-          className={`px-4 py-3 rounded mb-4 flex justify-between items-center border ${
-            fixMessage.type === "success"
-              ? "bg-green-100 border-green-400 text-green-700"
-              : "bg-red-100 border-red-400 text-red-700"
-          }`}
-        >
-          <p className="font-semibold">{fixMessage.text}</p>
-          <button
-            onClick={() => setFixMessage(null)}
-            className="font-bold ml-4 hover:opacity-70"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+
 
       {/* Encabezado y controles */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 py-2">
@@ -457,15 +401,6 @@ function ProductsManager() {
             </button>
           )}
           
-          {/* 🚀 Botón para reparar datos de productos */}
-          <button
-            onClick={handleFixProductsData}
-            disabled={fixingData}
-            className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-orange-600 hover:bg-orange-700"
-            title="Reparar datos inconsistentes en productos (stock, minStockByStore)"
-          >
-            {fixingData ? "🔧 Reparando..." : "🔧 Reparar Datos"}
-          </button>
           <button
             onClick={() => {
               setShowForm(true)
@@ -532,10 +467,16 @@ function ProductsManager() {
           if (selectedCategory === "all") {
             categoryMatch = true
           } else if (selectedCategory === "out-of-stock") {
-            // Mostrar productos que están por debajo del stock mínimo
-            const minStock = product.minStockByStore?.[selectedStore] ?? 0
-            const currentStock = product.stock?.[selectedStore] ?? 0
-            categoryMatch = currentStock < minStock
+            // Mostrar productos que están por debajo del stock mínimo en CUALQUIER tienda
+            let hasLowStock = false
+            stores.forEach((store) => {
+              const minStock = product.minStockByStore?.[store.id] ?? 0
+              const currentStock = product.stock?.[store.id] ?? 0
+              if (currentStock < minStock) {
+                hasLowStock = true
+              }
+            })
+            categoryMatch = hasLowStock
           } else {
             categoryMatch = product.category === selectedCategory
           }

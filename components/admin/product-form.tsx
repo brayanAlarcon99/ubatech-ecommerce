@@ -9,6 +9,8 @@ import { getDb } from "@/lib/firebase"
 import { getDocs, collection, query, where } from "firebase/firestore"
 import { formatPrice, ensureNumberPrice, sanitizePriceInput } from "@/lib/format-price"
 import { compressImage, getBase64Size } from "@/lib/image-compression"
+import { validateImagesForEdit, getImageSizeInfo } from "@/lib/image-size-validator"
+import { getDocumentSizeInfo, cleanDocumentImages, generateDocumentSizeMessage } from "@/lib/firebase-document-cleanup"
 
 interface ProductFormProps {
   product: Product | null
@@ -60,6 +62,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [categoriesData, setCategoriesData] = useState<CategoryData[]>([])
+  const [imageSizeWarning, setImageSizeWarning] = useState<string | null>(null)
+  const [imageSizeError, setImageSizeError] = useState<string | null>(null)
+  const [documentOversizeError, setDocumentOversizeError] = useState<string | null>(null)
+  const [isCleaningDocument, setIsCleaningDocument] = useState(false)
 
   // Cargar datos de categorías y subcategorías
   useEffect(() => {
@@ -116,6 +122,35 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       setSubcategories([])
     }
   }, [formData.category])
+
+  // Validar tamaño de imágenes cuando cambien
+  useEffect(() => {
+    if (imagePreviews.length > 0) {
+      const validation = validateImagesForEdit(imagePreviews)
+      
+      if (validation.exceedsLimit) {
+        setImageSizeError(validation.errorMessage)
+        setImageSizeWarning(null)
+      } else if (validation.oversizedImages.length > 0) {
+        // Mostrar advertencia si hay imágenes grandes pero no excede el límite
+        let warningMsg = `⚠️ **Advertencia: Algunas imágenes son grandes**\n\n`
+        warningMsg += `📊 **Tamaño total:** ${validation.totalSizeMB}MB / 1MB\n\n`
+        warningMsg += `🖼️ **Imágenes grandes detectadas:**\n`
+        validation.oversizedImages.forEach((img) => {
+          warningMsg += `• Imagen ${img.index}: ${img.sizeMB}MB (${img.percentage}% del límite)\n`
+        })
+        warningMsg += `\n💡 Considera cambiar estas imágenes por versiones más pequeñas para mejor rendimiento.`
+        setImageSizeWarning(warningMsg)
+        setImageSizeError(null)
+      } else {
+        setImageSizeWarning(null)
+        setImageSizeError(null)
+      }
+    } else {
+      setImageSizeWarning(null)
+      setImageSizeError(null)
+    }
+  }, [imagePreviews])
 
   async function loadCategoriesData() {
     try {
@@ -329,23 +364,32 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     e.preventDefault()
     setLoading(true)
     setSaveError(null)
+    setDocumentOversizeError(null)
     try {
-      // Validación de imágenes - usar getBase64Size para mejor precisión
+      // Validación de imágenes con el nuevo validador de seguridad
       if (imagePreviews.length > 0) {
-        let hasOversizedImage = false
-        for (let i = 0; i < imagePreviews.length; i++) {
-          const imageSizeMB = getBase64Size(imagePreviews[i])
-          
-          if (imageSizeMB > MAX_BASE64_SIZE_MB) {
-            setSaveError(`⚠️ La imagen ${i + 1} supera el límite máximo permitido (~0.9MB). Tamaño actual: ${imageSizeMB.toFixed(2)}MB. Por favor, selecciona una imagen más pequeña.`)
-            hasOversizedImage = true
-            break
-          }
-        }
+        const validation = validateImagesForEdit(imagePreviews)
         
-        if (hasOversizedImage) {
+        // Si excede el límite, mostrar error detallado
+        if (validation.exceedsLimit) {
+          setSaveError(validation.errorMessage)
           setLoading(false)
           return
+        }
+
+        // Validación adicional por imagen individual
+        for (let i = 0; i < imagePreviews.length; i++) {
+          const sizeInfo = getImageSizeInfo(imagePreviews[i])
+          
+          if (sizeInfo.isOversized) {
+            setSaveError(
+              `⚠️ La imagen ${i + 1} supera el límite máximo permitido (1MB). ` +
+              `Tamaño actual: ${sizeInfo.sizeMB.toFixed(2)}MB. ` +
+              `Por favor, selecciona una imagen más pequeña o de menor resolución.`
+            )
+            setLoading(false)
+            return
+          }
         }
       }
 
@@ -385,8 +429,22 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       
-      // Detectar error de tamaño de imagen
-      if (errorMsg.includes("1048487") || errorMsg.includes("image") || errorMsg.includes("longer than")) {
+      // Detectar error de tamaño de documento de Firebase
+      if (
+        errorMsg.includes("exceeds the maximum allowed size") ||
+        errorMsg.includes("1048576") ||
+        errorMsg.includes("1048487")
+      ) {
+        // Este es el error que estamos viendo - documento oversized
+        setDocumentOversizeError(
+          "🚨 DOCUMENTO OVERSIZED\n\n" +
+          "El producto tiene imágenes demasiado grandes y no se puede guardar.\n\n" +
+          "Haz clic en 'Limpiar Imágenes Antiguas' para remover las imágenes " +
+          "que ocupan demasiado espacio. Luego podrás guardar los cambios.\n\n" +
+          "Después puedes cargar imágenes nuevas más pequeñas."
+        )
+        console.error("[ProductForm] Document oversize error:", errorMsg)
+      } else if (errorMsg.includes("image") || errorMsg.includes("longer than")) {
         setSaveError(`⚠️ Error al guardar: Una imagen supera el límite máximo permitido (1MB). Por favor, usa imágenes más pequeñas.`)
         console.error("[ProductForm] Image size error:", errorMsg)
       } else {
@@ -395,6 +453,31 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Función para limpiar imágenes de un documento oversized
+  async function handleCleanDocumentImages() {
+    if (!product?.id) return
+
+    setIsCleaningDocument(true)
+    try {
+      await cleanDocumentImages("products", product.id)
+      
+      // Limpiar las imágenes locales también
+      setImagePreviews([])
+      setFormData((prev) => ({
+        ...prev,
+        images: [],
+        image: "",
+      }))
+      setDocumentOversizeError(null)
+      setSaveError("✅ Imágenes antiguas eliminadas. Ahora puedes guardar los cambios.")
+    } catch (error) {
+      console.error("[ProductForm] Error cleaning document:", error)
+      setSaveError(`Error al limpiar las imágenes: ${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      setIsCleaningDocument(false)
     }
   }
 
@@ -755,6 +838,45 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                 </div>
               )}
 
+              {imageSizeError && (
+                <div className="mt-4 p-4 bg-red-100 border-2 border-red-500 text-red-700 rounded-lg space-y-2">
+                  <div className="text-sm font-bold">🚨 ERROR DE SEGURIDAD - Límite de Firebase Excedido</div>
+                  <div className="text-sm whitespace-pre-line" style={{ whiteSpace: "pre-wrap" }}>
+                    {imageSizeError}
+                  </div>
+                </div>
+              )}
+
+              {imageSizeWarning && (
+                <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-400 text-yellow-800 rounded-lg space-y-2">
+                  <div className="text-sm font-bold">⚠️ ADVERTENCIA - Imágenes Grandes Detectadas</div>
+                  <div className="text-sm whitespace-pre-line" style={{ whiteSpace: "pre-wrap" }}>
+                    {imageSizeWarning}
+                  </div>
+                </div>
+              )}
+
+              {documentOversizeError && (
+                <div className="mt-4 p-4 bg-red-100 border-2 border-red-600 text-red-800 rounded-lg space-y-3">
+                  <div className="text-sm font-bold">🚨 DOCUMENTO OVERSIZED - No puede guardar</div>
+                  <div className="text-sm whitespace-pre-line" style={{ whiteSpace: "pre-wrap" }}>
+                    {documentOversizeError}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCleanDocumentImages}
+                    disabled={isCleaningDocument || loading}
+                    className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isCleaningDocument ? "🔄 Limpiando..." : "🗑️ Limpiar Imágenes Antiguas"}
+                  </button>
+                  <p className="text-xs text-red-700 mt-2">
+                    Esto removará todas las imágenes antigas que ocupan demasiado espacio.
+                    Después podrás guardar los cambios y cargar nuevas imágenes más pequeñas.
+                  </p>
+                </div>
+              )}
+
               {imageLoadSuccess && (
                 <p className="text-sm text-green-600 mt-2 font-medium">
                   ✓ Imagen cargada correctamente
@@ -778,33 +900,58 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    {imagePreviews.map((preview, index) => (
-                      <div key={index} className="relative">
-                        <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border border-gray-200">
-                          <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-contain" />
-                        </div>
-                        <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                          {index + 1}
-                        </div>
-                        {index === 0 && (
-                          <div className="absolute top-1 right-1 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                            Portada
+                    {imagePreviews.map((preview, index) => {
+                      const sizeInfo = getImageSizeInfo(preview)
+                      const isLarge = sizeInfo.percentage > 80
+                      
+                      return (
+                        <div key={index} className="relative">
+                          <div className={`w-full h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border-2 ${
+                            isLarge ? 'border-orange-400' : 'border-gray-200'
+                          }`}>
+                            <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-contain" />
                           </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newPreviews = imagePreviews.filter((_, i) => i !== index)
-                            setImagePreviews(newPreviews)
-                            setFormData((prev) => ({ ...prev, images: newPreviews }))
-                            setImageError(null)
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                          
+                          {/* Número de imagen */}
+                          <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                            {index + 1}
+                          </div>
+                          
+                          {/* Etiqueta de portada */}
+                          {index === 0 && (
+                            <div className="absolute top-1 right-1 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                              Portada
+                            </div>
+                          )}
+                          
+                          {/* Información de tamaño */}
+                          <div className={`absolute bottom-1 left-1 right-1 text-xs font-semibold px-2 py-1 rounded text-center ${
+                            sizeInfo.isOversized 
+                              ? 'bg-red-500 text-white' 
+                              : isLarge 
+                              ? 'bg-orange-400 text-white' 
+                              : 'bg-gray-800 text-white opacity-75'
+                          }`}>
+                            {sizeInfo.sizeMB.toFixed(2)}MB ({sizeInfo.percentage.toFixed(0)}%)
+                          </div>
+                          
+                          {/* Botón eliminar */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newPreviews = imagePreviews.filter((_, i) => i !== index)
+                              setImagePreviews(newPreviews)
+                              setFormData((prev) => ({ ...prev, images: newPreviews }))
+                              setImageError(null)
+                            }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                            title={sizeInfo.isOversized ? '🗑️ ELIMINA esta imagen' : '✕ Eliminar'}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}

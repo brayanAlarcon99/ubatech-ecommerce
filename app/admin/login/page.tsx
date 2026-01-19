@@ -123,6 +123,7 @@ export default function AdminLoginPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-0 text-black bg-white"
                 style={{ "--tw-ring-color": "var(--accent-turquoise)" } as React.CSSProperties}
                 disabled={loading}
+                suppressHydrationWarning
               />
             </div>
 
@@ -138,6 +139,7 @@ export default function AdminLoginPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-0 text-black bg-white"
                 style={{ "--tw-ring-color": "var(--accent-turquoise)" } as React.CSSProperties}
                 disabled={loading}
+                suppressHydrationWarning
               />
             </div>
 
