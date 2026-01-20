@@ -8,9 +8,7 @@ import { getSubcategoriesByCategory } from "@/lib/subcategories"
 import { getDb } from "@/lib/firebase"
 import { getDocs, collection, query, where } from "firebase/firestore"
 import { formatPrice, ensureNumberPrice, sanitizePriceInput } from "@/lib/format-price"
-import { compressImage, getBase64Size } from "@/lib/image-compression"
-import { validateImagesForEdit, getImageSizeInfo } from "@/lib/image-size-validator"
-import { getDocumentSizeInfo, cleanDocumentImages, generateDocumentSizeMessage } from "@/lib/firebase-document-cleanup"
+import { getStorageImageUrls } from "@/lib/storage-images"
 
 interface ProductFormProps {
   product: Product | null
@@ -23,10 +21,6 @@ interface CategoryData {
   id: string
   name: string
 }
-
-// Constante para el límite de tamaño de imagen en bytes (1MB - Límite de Firestore)
-const MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
-const MAX_BASE64_SIZE_MB = 0.9; // Dejar margen
 
 export default function ProductForm({ product, categories, onSave, onCancel }: ProductFormProps) {
   const modalRef = useRef<HTMLDivElement>(null)
@@ -53,7 +47,6 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
   const [imagePreviews, setImagePreviews] = useState<string[]>(initialImages)
   const [imageInputFocus, setImageInputFocus] = useState(false)
   const [pasteMessage, setPasteMessage] = useState<string | null>(null)
-  const [imageError, setImageError] = useState<string | null>(null)
   const [imageLoadSuccess, setImageLoadSuccess] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [discountPercentage, setDiscountPercentage] = useState<number>(0)
@@ -62,15 +55,21 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [categoriesData, setCategoriesData] = useState<CategoryData[]>([])
-  const [imageSizeWarning, setImageSizeWarning] = useState<string | null>(null)
-  const [imageSizeError, setImageSizeError] = useState<string | null>(null)
-  const [documentOversizeError, setDocumentOversizeError] = useState<string | null>(null)
-  const [isCleaningDocument, setIsCleaningDocument] = useState(false)
 
   // Cargar datos de categorías y subcategorías
   useEffect(() => {
     loadCategoriesData()
   }, [])
+
+  // 🚀 Cargar imágenes de Storage cuando se abre el formulario
+  useEffect(() => {
+    if (product?.images && Array.isArray(product.images) && product.images.length > 0) {
+      // Las imágenes ya están como URLs (convertidas desde rutas de Storage)
+      // Se pueden mostrar directamente en los previews
+      setImagePreviews(product.images)
+      setFormData(prev => ({ ...prev, images: product.images || [] }))
+    }
+  }, [product?.id])
 
   // Cerrar modal al hacer clic fuera
   useEffect(() => {
@@ -122,35 +121,6 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       setSubcategories([])
     }
   }, [formData.category])
-
-  // Validar tamaño de imágenes cuando cambien
-  useEffect(() => {
-    if (imagePreviews.length > 0) {
-      const validation = validateImagesForEdit(imagePreviews)
-      
-      if (validation.exceedsLimit) {
-        setImageSizeError(validation.errorMessage)
-        setImageSizeWarning(null)
-      } else if (validation.oversizedImages.length > 0) {
-        // Mostrar advertencia si hay imágenes grandes pero no excede el límite
-        let warningMsg = `⚠️ **Advertencia: Algunas imágenes son grandes**\n\n`
-        warningMsg += `📊 **Tamaño total:** ${validation.totalSizeMB}MB / 1MB\n\n`
-        warningMsg += `🖼️ **Imágenes grandes detectadas:**\n`
-        validation.oversizedImages.forEach((img) => {
-          warningMsg += `• Imagen ${img.index}: ${img.sizeMB}MB (${img.percentage}% del límite)\n`
-        })
-        warningMsg += `\n💡 Considera cambiar estas imágenes por versiones más pequeñas para mejor rendimiento.`
-        setImageSizeWarning(warningMsg)
-        setImageSizeError(null)
-      } else {
-        setImageSizeWarning(null)
-        setImageSizeError(null)
-      }
-    } else {
-      setImageSizeWarning(null)
-      setImageSizeError(null)
-    }
-  }, [imagePreviews])
 
   async function loadCategoriesData() {
     try {
@@ -255,19 +225,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file && file.type.startsWith("image/")) {
-      // Validar tamaño de archivo
-      if (file.size > MAX_IMAGE_SIZE) {
-        const sizeMB = (file.size / (1024 * 1024)).toFixed(2)
-        const limitMB = (MAX_IMAGE_SIZE / (1024 * 1024)).toFixed(2)
-        const errorMsg = `⚠️ El archivo es demasiado grande (${sizeMB}MB). El límite máximo es ${limitMB}MB. Selecciona una imagen más pequeña o de menor resolución.`
-        setImageError(errorMsg)
-        setPasteMessage(null)
-        return
-      }
-
-      // Verificar cantidad máxima de imágenes (máx 3)
-      if (imagePreviews.length >= 3) {
-        setImageError("⚠️ Máximo 3 imágenes permitidas por producto")
+      // 🚀 Limitar a máximo 5 imágenes
+      if (imagePreviews.length >= 5) {
+        setPasteMessage("⚠️ Máximo 5 imágenes permitidas")
+        setTimeout(() => setPasteMessage(null), 3000)
         return
       }
 
@@ -276,24 +237,16 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
         try {
           let result = event.target?.result as string
           
-          // Comprimir imagen si es necesario
-          if (getBase64Size(result) > MAX_BASE64_SIZE_MB) {
-            console.log("Comprimiendo imagen...")
-            result = await compressImage(result)
-          }
-          
           setImagePreviews((prev) => [...prev, result])
           setFormData((prev) => ({ 
             ...prev, 
             images: [...(prev.images || []), result]
           }))
-          setImageError(null)
           setImageLoadSuccess(true)
           setPasteMessage(null)
           setTimeout(() => setImageLoadSuccess(false), 3000)
         } catch (error) {
-          console.error("Error comprimiendo imagen:", error)
-          setImageError("❌ Error al procesar la imagen. Intenta con otra.")
+          console.error("Error procesando imagen:", error)
         }
       }
       reader.readAsDataURL(file)
@@ -307,34 +260,21 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf("image") !== -1) {
         e.preventDefault()
+        
+        // 🚀 Limitar a máximo 5 imágenes
+        if (imagePreviews.length >= 5) {
+          setPasteMessage("⚠️ Máximo 5 imágenes permitidas")
+          setTimeout(() => setPasteMessage(null), 3000)
+          return
+        }
+        
         const file = items[i].getAsFile()
         if (file) {
-          // Validar tamaño de archivo
-          if (file.size > MAX_IMAGE_SIZE) {
-            const sizeMB = (file.size / (1024 * 1024)).toFixed(2)
-            const limitMB = (MAX_IMAGE_SIZE / (1024 * 1024)).toFixed(2)
-            const errorMsg = `⚠️ El archivo es demasiado grande (${sizeMB}MB). El límite máximo es ${limitMB}MB. Selecciona una imagen más pequeña o de menor resolución.`
-            setImageError(errorMsg)
-            setPasteMessage(null)
-            return
-          }
-
-          // Verificar cantidad máxima de imágenes (máx 3)
-          if (imagePreviews.length >= 3) {
-            setImageError("⚠️ Máximo 3 imágenes permitidas por producto")
-            return
-          }
 
           const reader = new FileReader()
           reader.onload = async (event) => {
             try {
               let result = event.target?.result as string
-              
-              // Comprimir imagen si es necesario
-              if (getBase64Size(result) > MAX_BASE64_SIZE_MB) {
-                console.log("Comprimiendo imagen pegada...")
-                result = await compressImage(result)
-              }
               
               setImagePreviews((prev) => [...prev, result])
               setFormData((prev) => ({ 
@@ -342,7 +282,6 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                 images: [...(prev.images || []), result]
               }))
               setPasteMessage("✓ Imagen pegada correctamente")
-              setImageError(null)
               setImageLoadSuccess(true)
               setTimeout(() => {
                 setPasteMessage(null)
@@ -350,7 +289,6 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
               }, 3000)
             } catch (error) {
               console.error("Error al procesar imagen pegada:", error)
-              setImageError("❌ Error al procesar la imagen pegada. Intenta con otra.")
             }
           }
           reader.readAsDataURL(file)
@@ -364,35 +302,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     e.preventDefault()
     setLoading(true)
     setSaveError(null)
-    setDocumentOversizeError(null)
     try {
-      // Validación de imágenes con el nuevo validador de seguridad
-      if (imagePreviews.length > 0) {
-        const validation = validateImagesForEdit(imagePreviews)
-        
-        // Si excede el límite, mostrar error detallado
-        if (validation.exceedsLimit) {
-          setSaveError(validation.errorMessage)
-          setLoading(false)
-          return
-        }
-
-        // Validación adicional por imagen individual
-        for (let i = 0; i < imagePreviews.length; i++) {
-          const sizeInfo = getImageSizeInfo(imagePreviews[i])
-          
-          if (sizeInfo.isOversized) {
-            setSaveError(
-              `⚠️ La imagen ${i + 1} supera el límite máximo permitido (1MB). ` +
-              `Tamaño actual: ${sizeInfo.sizeMB.toFixed(2)}MB. ` +
-              `Por favor, selecciona una imagen más pequeña o de menor resolución.`
-            )
-            setLoading(false)
-            return
-          }
-        }
-      }
-
       // Validación de descuento
       if (formData.discountedPrice > 0 && formData.discountedPrice >= formData.price) {
         setSaveError("⚠️ El precio con descuento debe ser menor que el precio original")
@@ -428,56 +338,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       onSave(dataToSave)
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
-      
-      // Detectar error de tamaño de documento de Firebase
-      if (
-        errorMsg.includes("exceeds the maximum allowed size") ||
-        errorMsg.includes("1048576") ||
-        errorMsg.includes("1048487")
-      ) {
-        // Este es el error que estamos viendo - documento oversized
-        setDocumentOversizeError(
-          "🚨 DOCUMENTO OVERSIZED\n\n" +
-          "El producto tiene imágenes demasiado grandes y no se puede guardar.\n\n" +
-          "Haz clic en 'Limpiar Imágenes Antiguas' para remover las imágenes " +
-          "que ocupan demasiado espacio. Luego podrás guardar los cambios.\n\n" +
-          "Después puedes cargar imágenes nuevas más pequeñas."
-        )
-        console.error("[ProductForm] Document oversize error:", errorMsg)
-      } else if (errorMsg.includes("image") || errorMsg.includes("longer than")) {
-        setSaveError(`⚠️ Error al guardar: Una imagen supera el límite máximo permitido (1MB). Por favor, usa imágenes más pequeñas.`)
-        console.error("[ProductForm] Image size error:", errorMsg)
-      } else {
-        setSaveError(`Error al guardar el producto: ${errorMsg}`)
-        console.error("[ProductForm] Save error:", error)
-      }
+      setSaveError(`Error al guardar el producto: ${errorMsg}`)
+      console.error("[ProductForm] Save error:", error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  // Función para limpiar imágenes de un documento oversized
-  async function handleCleanDocumentImages() {
-    if (!product?.id) return
-
-    setIsCleaningDocument(true)
-    try {
-      await cleanDocumentImages("products", product.id)
-      
-      // Limpiar las imágenes locales también
-      setImagePreviews([])
-      setFormData((prev) => ({
-        ...prev,
-        images: [],
-        image: "",
-      }))
-      setDocumentOversizeError(null)
-      setSaveError("✅ Imágenes antiguas eliminadas. Ahora puedes guardar los cambios.")
-    } catch (error) {
-      console.error("[ProductForm] Error cleaning document:", error)
-      setSaveError(`Error al limpiar las imágenes: ${error instanceof Error ? error.message : String(error)}`)
-    } finally {
-      setIsCleaningDocument(false)
     }
   }
 
@@ -740,10 +604,10 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
             <div onPaste={handleImagePaste} className="focus:outline-none">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-black" style={{ color: "var(--primary)" }}>
-                  Imagen
+                  Imágenes
                 </label>
                 <span className="text-xs text-gray-500">
-                  Máximo: 1MB
+                  Máximo: 5 imágenes
                 </span>
               </div>
               <div
@@ -760,23 +624,16 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                 onDrop={(e) => {
                   e.preventDefault()
                   setImageInputFocus(false)
+                  
+                  // 🚀 Limitar a máximo 5 imágenes
+                  if (imagePreviews.length >= 5) {
+                    setPasteMessage("⚠️ Máximo 5 imágenes permitidas")
+                    setTimeout(() => setPasteMessage(null), 3000)
+                    return
+                  }
+                  
                   const file = e.dataTransfer.files?.[0]
                   if (file && file.type.startsWith("image/")) {
-                    // Validar tamaño de archivo
-                    if (file.size > MAX_IMAGE_SIZE) {
-                      const sizeMB = (file.size / (1024 * 1024)).toFixed(2)
-                      const limitMB = (MAX_IMAGE_SIZE / (1024 * 1024)).toFixed(2)
-                      const errorMsg = `⚠️ El archivo es demasiado grande (${sizeMB}MB). El límite máximo es ${limitMB}MB. Selecciona una imagen más pequeña o de menor resolución.`
-                      setImageError(errorMsg)
-                      setPasteMessage(null)
-                      return
-                    }
-
-                    // Verificar cantidad máxima de imágenes (máx 3)
-                    if (imagePreviews.length >= 3) {
-                      setImageError("⚠️ Máximo 3 imágenes permitidas por producto")
-                      return
-                    }
 
                     const reader = new FileReader()
                     reader.onload = (event) => {
@@ -787,7 +644,6 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                         images: [...(prev.images || []), result]
                       }))
                       setPasteMessage("✓ Imagen cargada correctamente")
-                      setImageError(null)
                       setImageLoadSuccess(true)
                       setTimeout(() => {
                         setPasteMessage(null)
@@ -807,13 +663,8 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                     Haz clic para seleccionar o arrastra una imagen
                   </p>
                   <p className="text-xs text-gray-500 mb-3">
-                    Máximo 3 imágenes. También puedes pegar con <kbd className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">Ctrl+V</kbd>
+                    También puedes pegar con <kbd className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">Ctrl+V</kbd>
                   </p>
-                  {imagePreviews.length > 0 && (
-                    <p className="text-xs text-blue-600 font-semibold mb-3">
-                      {imagePreviews.length}/3 imágenes cargadas
-                    </p>
-                  )}
                 </div>
                 <input
                   type="file"
@@ -830,53 +681,6 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                 </label>
               </div>
               
-              {imageError && (
-                <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-                  <p className="text-sm font-medium">
-                    {imageError}
-                  </p>
-                </div>
-              )}
-
-              {imageSizeError && (
-                <div className="mt-4 p-4 bg-red-100 border-2 border-red-500 text-red-700 rounded-lg space-y-2">
-                  <div className="text-sm font-bold">🚨 ERROR DE SEGURIDAD - Límite de Firebase Excedido</div>
-                  <div className="text-sm whitespace-pre-line" style={{ whiteSpace: "pre-wrap" }}>
-                    {imageSizeError}
-                  </div>
-                </div>
-              )}
-
-              {imageSizeWarning && (
-                <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-400 text-yellow-800 rounded-lg space-y-2">
-                  <div className="text-sm font-bold">⚠️ ADVERTENCIA - Imágenes Grandes Detectadas</div>
-                  <div className="text-sm whitespace-pre-line" style={{ whiteSpace: "pre-wrap" }}>
-                    {imageSizeWarning}
-                  </div>
-                </div>
-              )}
-
-              {documentOversizeError && (
-                <div className="mt-4 p-4 bg-red-100 border-2 border-red-600 text-red-800 rounded-lg space-y-3">
-                  <div className="text-sm font-bold">🚨 DOCUMENTO OVERSIZED - No puede guardar</div>
-                  <div className="text-sm whitespace-pre-line" style={{ whiteSpace: "pre-wrap" }}>
-                    {documentOversizeError}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCleanDocumentImages}
-                    disabled={isCleaningDocument || loading}
-                    className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
-                  >
-                    {isCleaningDocument ? "🔄 Limpiando..." : "🗑️ Limpiar Imágenes Antiguas"}
-                  </button>
-                  <p className="text-xs text-red-700 mt-2">
-                    Esto removará todas las imágenes antigas que ocupan demasiado espacio.
-                    Después podrás guardar los cambios y cargar nuevas imágenes más pequeñas.
-                  </p>
-                </div>
-              )}
-
               {imageLoadSuccess && (
                 <p className="text-sm text-green-600 mt-2 font-medium">
                   ✓ Imagen cargada correctamente
@@ -893,7 +697,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-medium text-gray-600">
-                      Imágenes cargadas ({imagePreviews.length}/3):
+                      Imágenes cargadas ({imagePreviews.length}/5):
                     </p>
                     <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">
                       Primera = Portada
@@ -901,14 +705,9 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     {imagePreviews.map((preview, index) => {
-                      const sizeInfo = getImageSizeInfo(preview)
-                      const isLarge = sizeInfo.percentage > 80
-                      
                       return (
                         <div key={index} className="relative">
-                          <div className={`w-full h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border-2 ${
-                            isLarge ? 'border-orange-400' : 'border-gray-200'
-                          }`}>
+                          <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border-2 border-gray-200">
                             <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-contain" />
                           </div>
                           
@@ -924,17 +723,6 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                             </div>
                           )}
                           
-                          {/* Información de tamaño */}
-                          <div className={`absolute bottom-1 left-1 right-1 text-xs font-semibold px-2 py-1 rounded text-center ${
-                            sizeInfo.isOversized 
-                              ? 'bg-red-500 text-white' 
-                              : isLarge 
-                              ? 'bg-orange-400 text-white' 
-                              : 'bg-gray-800 text-white opacity-75'
-                          }`}>
-                            {sizeInfo.sizeMB.toFixed(2)}MB ({sizeInfo.percentage.toFixed(0)}%)
-                          </div>
-                          
                           {/* Botón eliminar */}
                           <button
                             type="button"
@@ -942,10 +730,9 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                               const newPreviews = imagePreviews.filter((_, i) => i !== index)
                               setImagePreviews(newPreviews)
                               setFormData((prev) => ({ ...prev, images: newPreviews }))
-                              setImageError(null)
                             }}
                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-                            title={sizeInfo.isOversized ? '🗑️ ELIMINA esta imagen' : '✕ Eliminar'}
+                            title="✕ Eliminar"
                           >
                             ✕
                           </button>

@@ -7,6 +7,7 @@ import { app, getDb } from "@/lib/firebase"
 import { collection, getDocs, doc, setDoc } from "firebase/firestore"
 import { getInactivityTimeout, setInactivityTimeout } from "@/lib/admin-auth"
 import PublicSiteControl from "./public-site-control"
+import AdminMaintenanceControl from "./admin-maintenance-control"
 
 export default function Settings() {
   const [loading, setLoading] = useState(false)
@@ -198,7 +199,11 @@ export default function Settings() {
               </button>
             </div>
           </div>
-        </div>
+          {/* Modo Mantenimiento del Panel Admin */}
+          <div className="mt-6">
+            <hr className="my-4" />
+            <AdminMaintenanceControl userId={user?.uid || ""} userRole={userRole} />
+          </div>        </div>
       )}
 
       <div className="bg-white rounded-lg shadow p-6">

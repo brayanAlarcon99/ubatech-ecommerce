@@ -15,6 +15,7 @@ import OrdersManager from "@/components/admin/orders-manager"
 import Analytics from "@/components/admin/analytics"
 import Settings from "@/components/admin/settings"
 import StoresSettings from "@/components/admin/stores-settings"
+import MaintenanceCheck from "@/components/admin/maintenance-check"
 import { useAdminInactivity } from "@/hooks/use-admin-inactivity"
 import { getInactivityTimeout } from "@/lib/admin-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -155,66 +156,68 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="flex h-screen flex-col">
-      <AdminHeader />
-      <div className="flex flex-1 overflow-hidden">
-        <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} userRole={role} />
-        <main className="flex-1 overflow-y-auto p-8" style={{ backgroundColor: "#f8fafc" }}>
-          {activeTab === "dashboard" && <Analytics />}
-          {activeTab === "products" && <ProductsManager />}
-          {activeTab === "categories" && <CategoriesManager />}
-          {activeTab === "orders" && <OrdersManager />}
-          {activeTab === "stores" && (
-            (role === "super" || role === "admin") ? (
-              <StoresSettings />
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center text-gray-500">
-                  <p className="text-lg">No tienes permiso para acceder a esta sección</p>
+    <MaintenanceCheck userRole={role}>
+      <div className="flex h-screen flex-col">
+        <AdminHeader />
+        <div className="flex flex-1 overflow-hidden">
+          <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} userRole={role} />
+          <main className="flex-1 overflow-y-auto p-8" style={{ backgroundColor: "#f8fafc" }}>
+            {activeTab === "dashboard" && <Analytics />}
+            {activeTab === "products" && <ProductsManager />}
+            {activeTab === "categories" && <CategoriesManager />}
+            {activeTab === "orders" && <OrdersManager />}
+            {activeTab === "stores" && (
+              (role === "super" || role === "admin") ? (
+                <StoresSettings />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-gray-500">
+                    <p className="text-lg">No tienes permiso para acceder a esta sección</p>
+                  </div>
                 </div>
-              </div>
-            )
-          )}
-          {activeTab === "users" && (
-            role === "super" ? (
-              <UsersManager />
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center text-gray-500">
-                  <p className="text-lg">No tienes permiso para acceder a esta sección</p>
+              )
+            )}
+            {activeTab === "users" && (
+              role === "super" ? (
+                <UsersManager />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-gray-500">
+                    <p className="text-lg">No tienes permiso para acceder a esta sección</p>
+                  </div>
                 </div>
+              )
+            )}
+            {activeTab === "settings" && <Settings />}
+          </main>
+        </div>
+        {showWarning && (
+          <div className="fixed bottom-4 right-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow-lg max-w-sm">
+            <div className="flex items-start">
+              <div className="flex-1">
+                <h3 className="font-semibold text-yellow-800 mb-1">Sesión expirando</h3>
+                <p className="text-sm text-yellow-700 mb-3">
+                  Tu sesión se cerrará por inactividad en {countdownSeconds} segundos
+                </p>
+                <button
+                  onClick={() => {
+                    setShowWarning(false)
+                    setCountdownSeconds(0)
+                    toast({
+                      title: "Sesión renovada",
+                      description: "Tu sesión ha sido renovada",
+                    })
+                  }}
+                  className="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline"
+                >
+                  Mantener sesión activa
+                </button>
               </div>
-            )
-          )}
-          {activeTab === "settings" && <Settings />}
-        </main>
-      </div>
-      {showWarning && (
-        <div className="fixed bottom-4 right-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow-lg max-w-sm">
-          <div className="flex items-start">
-            <div className="flex-1">
-              <h3 className="font-semibold text-yellow-800 mb-1">Sesión expirando</h3>
-              <p className="text-sm text-yellow-700 mb-3">
-                Tu sesión se cerrará por inactividad en {countdownSeconds} segundos
-              </p>
-              <button
-                onClick={() => {
-                  setShowWarning(false)
-                  setCountdownSeconds(0)
-                  toast({
-                    title: "Sesión renovada",
-                    description: "Tu sesión ha sido renovada",
-                  })
-                }}
-                className="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline"
-              >
-                Mantener sesión activa
-              </button>
             </div>
           </div>
-        </div>
-      )}
-      <ScrollToTop />
-    </div>
+        )}
+        <ScrollToTop />
+      </div>
+    </MaintenanceCheck>
   )
 }

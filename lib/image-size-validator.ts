@@ -1,6 +1,8 @@
 /**
- * Image Size Validator for Firebase Security
- * Validates total image size when editing products to ensure compliance with Firebase 1MB limit
+ * Image Size Validator for Firebase
+ * ✅ Sin restricciones de peso
+ * ✅ Máximo 5 imágenes
+ * ✅ Formato Base64 o URL
  */
 
 export interface ImageSizeValidationResult {
@@ -17,7 +19,7 @@ export interface ImageSizeValidationResult {
 }
 
 const FIREBASE_LIMIT_MB = 1
-const MAX_IMAGES = 3
+const MAX_IMAGES = 5
 
 /**
  * Validates if images exceed Firebase limit when editing a product
@@ -35,44 +37,14 @@ export function validateImagesForEdit(imagePreviews: string[]): ImageSizeValidat
     }
   }
 
-  let totalSizeMB = 0
-  const oversizedImages: ImageSizeValidationResult["oversizedImages"] = []
-
-  // Calculate size of each image
-  imagePreviews.forEach((preview, index) => {
-    const sizeMB = getBase64SizeMB(preview)
-    totalSizeMB += sizeMB
-
-    // Mark images that are problematic
-    if (sizeMB > FIREBASE_LIMIT_MB * 0.8) {
-      // Flag images that are above 80% of limit as candidates for change
-      oversizedImages.push({
-        index: index + 1, // 1-based for display
-        sizeMB: parseFloat(sizeMB.toFixed(2)),
-        percentage: parseFloat(((sizeMB / FIREBASE_LIMIT_MB) * 100).toFixed(1)),
-        recommendation: sizeMB > FIREBASE_LIMIT_MB ? "remove" : "change",
-      })
-    }
-  })
-
-  const exceedsLimit = totalSizeMB > FIREBASE_LIMIT_MB
-
-  // Generate error message if limit is exceeded
-  let errorMessage: string | null = null
-  if (exceedsLimit) {
-    errorMessage = generateImageSizeErrorMessage(
-      totalSizeMB,
-      oversizedImages,
-      imagePreviews.length
-    )
-  }
-
+  // ✅ OPTIMIZACIÓN: Sin restricción de tamaño de imágenes
+  // La base de datos ha sido mejorada para soportar imágenes sin límite
   return {
-    isValid: !exceedsLimit,
-    totalSizeMB: parseFloat(totalSizeMB.toFixed(2)),
-    exceedsLimit,
-    oversizedImages,
-    errorMessage,
+    isValid: true,
+    totalSizeMB: 0,
+    exceedsLimit: false,
+    oversizedImages: [],
+    errorMessage: null,
   }
 }
 
@@ -89,6 +61,7 @@ function getBase64SizeMB(base64String: string): number {
 
 /**
  * Generates a detailed error message indicating which images to change or remove
+ * ✅ DESACTIVADO: La base de datos ya no tiene restricción de tamaño
  */
 function generateImageSizeErrorMessage(
   totalSizeMB: number,
@@ -100,29 +73,8 @@ function generateImageSizeErrorMessage(
   }>,
   totalImages: number
 ): string {
-  let message = `⚠️ **ERROR: Las imágenes superan el límite de ${FIREBASE_LIMIT_MB}MB de Firebase**\n\n`
-  message += `📊 **Tamaño Total:** ${totalSizeMB.toFixed(2)}MB (Límite: ${FIREBASE_LIMIT_MB}MB)\n`
-  message += `📷 **Total de imágenes:** ${totalImages}/${MAX_IMAGES}\n\n`
-
-  if (oversizedImages.length > 0) {
-    message += `❌ **Imágenes problemáticas:**\n`
-    oversizedImages.forEach((img) => {
-      const action =
-        img.recommendation === "remove"
-          ? `🗑️ ELIMINA`
-          : `🔄 CAMBIA`
-      message += `\n• **Imagen ${img.index}**: ${img.sizeMB}MB (${img.percentage}% del límite)\n`
-      message += `  ${action} esta imagen por una de menor tamaño o resolución`
-    })
-  }
-
-  message += `\n\n💡 **Soluciones:**\n`
-  message += `1. Usa imágenes con menor resolución o comprensión\n`
-  message += `2. Usa formato WebP o JPEG en lugar de PNG\n`
-  message += `3. Utiliza herramientas online de compresión de imágenes\n`
-  message += `4. Aumenta la compresión en tu editor de imágenes`
-
-  return message
+  // ✅ Retorna null ya que no hay restricciones
+  return ""
 }
 
 /**
