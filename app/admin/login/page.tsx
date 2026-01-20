@@ -8,10 +8,12 @@ import { getAuth, signInWithEmailAndPassword } from "firebase/auth"
 import { app, getDb } from "@/lib/firebase"
 import { doc, getDoc } from "firebase/firestore"
 import Image from "next/image"
+import { Eye, EyeOff } from "lucide-react"
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   // Registro deshabilitado, solo login
@@ -131,16 +133,31 @@ export default function AdminLoginPage() {
               <label className="block text-sm font-medium mb-2 text-black" style={{ color: "var(--primary-dark)" }}>
                 Contraseña
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Ingresa tu contraseña"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-0 text-black bg-white"
-                style={{ "--tw-ring-color": "var(--accent-turquoise)" } as React.CSSProperties}
-                disabled={loading}
-                suppressHydrationWarning
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Ingresa tu contraseña"
+                  className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-0 text-black bg-white"
+                  style={{ "--tw-ring-color": "var(--accent-turquoise)" } as React.CSSProperties}
+                  disabled={loading}
+                  suppressHydrationWarning
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? (
+                    <EyeOff size={20} />
+                  ) : (
+                    <Eye size={20} />
+                  )}
+                </button>
+              </div>
             </div>
 
             {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
