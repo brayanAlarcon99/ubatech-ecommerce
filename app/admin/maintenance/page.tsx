@@ -23,7 +23,7 @@ export default function MaintenancePage() {
     const loadSupportEmail = async () => {
       try {
         const db = getDb()
-        const platformInfoDoc = await getDoc(doc(db, "platform_info", "main"))
+        const platformInfoDoc = await getDoc(doc(db, "platform_info", "platform_info"))
         if (platformInfoDoc.exists() && platformInfoDoc.data().supportEmail) {
           setSupportEmail(platformInfoDoc.data().supportEmail)
         }
