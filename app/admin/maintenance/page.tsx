@@ -3,18 +3,36 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getAuth, signOut } from "firebase/auth"
+import { getDb } from "@/lib/firebase"
 import { app } from "@/lib/firebase"
+import { doc, getDoc } from "firebase/firestore"
 
 export default function MaintenancePage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [supportEmail, setSupportEmail] = useState("support@ubatech.com")
 
   useEffect(() => {
     // Actualizar la hora cada segundo
     const timer = setInterval(() => {
       setCurrentTime(new Date())
     }, 1000)
+
+    // Cargar email de soporte desde Firestore
+    const loadSupportEmail = async () => {
+      try {
+        const db = getDb()
+        const platformInfoDoc = await getDoc(doc(db, "platform_info", "main"))
+        if (platformInfoDoc.exists() && platformInfoDoc.data().supportEmail) {
+          setSupportEmail(platformInfoDoc.data().supportEmail)
+        }
+      } catch (error) {
+        console.error("Error loading support email:", error)
+      }
+    }
+
+    loadSupportEmail()
 
     // Verificar si el usuario es super usuario
     const auth = getAuth(app)
@@ -90,11 +108,10 @@ export default function MaintenancePage() {
             Hora actual: <span className="font-mono">{currentTime.toLocaleTimeString("es-ES")}</span>
           </div>
 
-          {/* Tiempo Estimado */}
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 space-y-2">
-            <p className="text-sm font-semibold text-blue-900">⏱️ Tiempo Estimado</p>
-            <p className="text-2xl font-bold text-blue-600">15 minutos</p>
-            <p className="text-xs text-blue-700">Volveremos pronto con mejoras</p>
+          {/* Mensaje simple */}
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+            <p className="text-lg font-semibold text-blue-600">✨ Volveremos pronto</p>
+            <p className="text-sm text-blue-700 mt-2">Estamos trabajando en mejoras para ti</p>
           </div>
 
           {/* Información */}
@@ -119,12 +136,12 @@ export default function MaintenancePage() {
           {/* Contacto */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-2">
             <p className="text-sm font-semibold text-gray-700">💬 Necesitas Ayuda?</p>
-            <p className="text-xs text-gray-600 mb-3">Contacta con el super usuario o el equipo de soporte:</p>
+            <p className="text-xs text-gray-600 mb-3">Contacta con el equipo de soporte:</p>
             <a
-              href="mailto:support@ubatech.com"
+              href={`mailto:${supportEmail}`}
               className="inline-block px-4 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors"
             >
-              📧 support@ubatech.com
+              📧 {supportEmail}
             </a>
           </div>
 
