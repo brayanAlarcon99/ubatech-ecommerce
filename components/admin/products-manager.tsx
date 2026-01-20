@@ -10,6 +10,7 @@ import { normalizeProducts } from "@/lib/normalize-products"
 import { formatPriceWithCurrency, normalizeProductPrice } from "@/lib/format-price"
 import { generateOutOfStockPDF } from "@/lib/pdf-generator"
 import { Download } from "lucide-react"
+import { uploadProductImage } from "@/lib/image-storage"
 
 function ProductsManager() {
   const [products, setProducts] = useState<Product[]>([])
@@ -177,6 +178,45 @@ function ProductsManager() {
       }
       if (!cleanedData.minStockByStore) {
         cleanedData.minStockByStore = { djcelutecnico: 0, ubatech: 0 }
+      }
+
+      // 🚀 PROCESAR IMÁGENES: Subir base64 a Firebase Storage, mantener URLs
+      const processedImages: string[] = []
+      const productId = editingProduct?.id || `temp_${Date.now()}`
+      
+      if (cleanedData.images && Array.isArray(cleanedData.images)) {
+        for (let i = 0; i < cleanedData.images.length; i++) {
+          const image = cleanedData.images[i] as string
+          
+          if (image.startsWith("data:")) {
+            // 🔥 Es una imagen base64 - subirla a Firebase Storage
+            try {
+              console.log(`[ProductsManager] Subiendo imagen ${i + 1} a Storage...`)
+              
+              // Convertir data URL a Blob
+              const response = await fetch(image)
+              const blob = await response.blob()
+              
+              // Crear File object
+              const file = new File([blob], `image-${i}.jpg`, { type: "image/jpeg" })
+              
+              // Subir a Storage y obtener URL
+              const downloadURL = await uploadProductImage(file, productId, i)
+              processedImages.push(downloadURL)
+              
+              console.log(`[ProductsManager] Imagen ${i + 1} subida: ${downloadURL}`)
+            } catch (uploadError) {
+              console.error(`Error subiendo imagen ${i + 1}:`, uploadError)
+              throw new Error(`Error al subir imagen ${i + 1} a Firebase Storage`)
+            }
+          } else {
+            // Ya es una URL de Storage, mantenerla como está
+            processedImages.push(image)
+          }
+        }
+        
+        // Reemplazar imágenes base64 con URLs de Storage
+        cleanedData.images = processedImages
       }
       
       console.log("[ProductsManager] Guardando producto:", cleanedData)
