@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { db } from '@/lib/firebase'
+import { getDb } from '@/lib/firebase'
 import { collection, getDocs } from 'firebase/firestore'
 import type { Product } from '@/types'
 
@@ -35,6 +35,7 @@ export function ImageDiagnostics() {
         console.log('[DIAGNOSTICS] Starting image diagnostics...')
 
         // Obtener todos los productos
+        const db = getDb()
         const productsRef = collection(db, 'products')
         const querySnapshot = await getDocs(productsRef)
         const products = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Product))
