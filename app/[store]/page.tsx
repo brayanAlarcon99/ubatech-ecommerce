@@ -121,7 +121,11 @@ export default function StorePage() {
       for (const catDoc of categoriesSnapshot.docs) {
         const categoryId = catDoc.id;
         const categoryName = catDoc.data().name;
-        catMap.set(categoryId, categoryName);
+        const isVisible = catDoc.data().visible !== false; // Por defecto visible es true
+        // Solo agregar al mapa si es visible
+        if (isVisible) {
+          catMap.set(categoryId, categoryName);
+        }
       }
 
       // 🚀 OPTIMIZACIÓN: Usar query única que agrupa por categoryId

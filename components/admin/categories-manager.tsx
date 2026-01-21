@@ -12,6 +12,7 @@ interface Category {
   productCount?: number
   subcategories?: Subcategory[]
   showSubcategories?: boolean
+  visible?: boolean
 }
 
 export default function CategoriesManager() {
@@ -41,6 +42,7 @@ export default function CategoriesManager() {
       const cats = await Promise.all(
         snapshot.docs.map(async (doc) => {
           const categoryName = doc.data().name
+          const isVisible = doc.data().visible !== false // Por defecto visible es true
           // Contar productos en esta categoría (solo si el nombre existe)
           let productCount = 0
           if (categoryName) {
@@ -58,6 +60,7 @@ export default function CategoriesManager() {
             productCount: productCount,
             subcategories: subcategories,
             showSubcategories: false,
+            visible: isVisible,
           }
         })
       )
@@ -166,6 +169,21 @@ export default function CategoriesManager() {
     }
   }
 
+  async function handleToggleCategoryVisibility(id: string) {
+    try {
+      const db = getDb()
+      const category = categories.find((c) => c.id === id)
+      if (!category) return
+      
+      const newVisibility = !(category.visible ?? true)
+      await updateDoc(doc(db, "categories", id), { visible: newVisibility })
+      await loadCategories()
+    } catch (error) {
+      console.error("[v0] Error toggling category visibility:", error)
+      setError("Error al cambiar la visibilidad de la categoría")
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold" style={{ color: "var(--primary-dark)" }}>
@@ -220,6 +238,9 @@ export default function CategoriesManager() {
                 <th className="px-6 py-4 text-center font-semibold text-white w-20">
                   Productos
                 </th>
+                <th className="px-6 py-4 text-center font-semibold text-white w-24">
+                  Visible
+                </th>
                 <th className="px-6 py-4 text-right font-semibold text-white">
                   Acciones
                 </th>
@@ -253,6 +274,19 @@ export default function CategoriesManager() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="text-black">{category.productCount || 0}</span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => handleToggleCategoryVisibility(category.id)}
+                        className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                          category.visible ?? true
+                            ? "bg-green-100 text-green-700 hover:bg-green-200"
+                            : "bg-red-100 text-red-700 hover:bg-red-200"
+                        }`}
+                        title={category.visible ?? true ? "Visible en página pública" : "Oculto en página pública"}
+                      >
+                        {category.visible ?? true ? "✓ Visible" : "✕ Oculto"}
+                      </button>
                     </td>
                     <td className="px-6 py-4 text-right flex gap-2 justify-end">
                       {editingId === category.id ? (
@@ -310,7 +344,7 @@ export default function CategoriesManager() {
                     <>
                       {/* Formulario para agregar subcategoría */}
                       <tr className="bg-gray-50 border-t border-gray-200">
-                        <td colSpan={3} className="px-6 py-4">
+                        <td colSpan={4} className="px-6 py-4">
                           <div className="ml-8 space-y-3">
                             <h3 className="text-sm font-semibold text-gray-700">Agregar Subcategoría</h3>
                             <div className="flex gap-2">
@@ -399,7 +433,7 @@ export default function CategoriesManager() {
                         ))
                       ) : (
                         <tr className="bg-blue-50 border-t border-gray-200">
-                          <td colSpan={3} className="px-6 py-3 pl-16 text-gray-500 text-sm">
+                          <td colSpan={4} className="px-6 py-3 pl-16 text-gray-500 text-sm">
                             No hay subcategorías aún
                           </td>
                         </tr>

@@ -8,8 +8,8 @@ import ProductForm from "./product-form"
 import { getSubcategoriesByCategory, getAllSubcategoriesGrouped } from "@/lib/subcategories"
 import { normalizeProducts } from "@/lib/normalize-products"
 import { formatPriceWithCurrency, normalizeProductPrice } from "@/lib/format-price"
-import { generateOutOfStockPDF } from "@/lib/pdf-generator"
-import { Download } from "lucide-react"
+import { generateOutOfStockPDF, generateCategoryPDF } from "@/lib/pdf-generator"
+import { Download, Share2 } from "lucide-react"
 import { uploadProductImage } from "@/lib/image-storage"
 
 function ProductsManager() {
@@ -55,9 +55,23 @@ function ProductsManager() {
         return
       }
 
+      // Validar que los productos tengan datos mínimos
+      const validProducts = allOutOfStockProducts.filter(p => {
+        if (!p.name || !p.name.trim()) {
+          console.warn(`[PDF] Skipping out-of-stock product with no name: ${p.id}`)
+          return false
+        }
+        return true
+      })
+
+      if (validProducts.length === 0) {
+        alert("No hay productos válidos con stock bajo para descargar")
+        return
+      }
+
       // Crear mapa de cantidad faltante por tienda y producto
       const outOfStockByProduct = new Map<string, { store: string; needed: number }[]>()
-      allOutOfStockProducts.forEach((p) => {
+      validProducts.forEach((p) => {
         const storesWithLowStock: { store: string; needed: number }[] = []
         
         const djMinStock = p.minStockByStore?.djcelutecnico ?? 0
@@ -83,14 +97,63 @@ function ProductsManager() {
 
       const storesText = selectedStore === "all" ? "Todas las Tiendas" : selectedStore
       
-      await generateOutOfStockPDF(allOutOfStockProducts, categoriesMap, {
+      console.log(`[ProductsManager] 📊 Generating out-of-stock PDF with ${validProducts.length} products`)
+
+      await generateOutOfStockPDF(validProducts, categoriesMap, {
         fileName: `Productos_Stock_Bajo_${storesText}_${new Date().getTime()}.pdf`,
         title: `Reporte de Productos con Stock Bajo (${storesText})`,
         outOfStockByProduct
       })
+
+      console.log(`[ProductsManager] ✅ Out-of-stock PDF generated successfully`)
     } catch (error) {
-      console.error("[ProductsManager] Error downloading PDF:", error)
-      alert("Error al descargar el PDF")
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido"
+      console.error("[ProductsManager] ❌ Error downloading PDF:", error)
+      alert(`Error al generar el PDF: ${errorMessage}. Por favor, intenta de nuevo.`)
+    } finally {
+      setDownloadingPDF(false)
+    }
+  }
+
+  async function handleDownloadCategoryPDF() {
+    try {
+      setDownloadingPDF(true)
+      
+      // Obtener productos de la categoría seleccionada
+      const categoryProducts = products.filter((p) => p.category === selectedCategory)
+      
+      if (categoryProducts.length === 0) {
+        alert("No hay productos en esta categoría para descargar")
+        return
+      }
+
+      const categoryName = categories.find((c) => c.id === selectedCategory)?.name || selectedCategory
+      
+      // Validar que los productos tengan datos mínimos
+      const validProducts = categoryProducts.filter(p => {
+        if (!p.name || !p.name.trim()) {
+          console.warn(`[PDF] Skipping product with no name: ${p.id}`)
+          return false
+        }
+        return true
+      })
+
+      if (validProducts.length === 0) {
+        alert("No hay productos válidos en esta categoría para descargar")
+        return
+      }
+
+      console.log(`[ProductsManager] 📊 Generating PDF for category "${categoryName}" with ${validProducts.length} products`)
+      
+      await generateCategoryPDF(validProducts, categoryName, {
+        fileName: `Catalogo_${categoryName}_${new Date().getTime()}.pdf`
+      })
+      
+      console.log(`[ProductsManager] ✅ PDF generated successfully`)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido"
+      console.error("[ProductsManager] ❌ Error downloading category PDF:", error)
+      alert(`Error al generar el PDF: ${errorMessage}. Por favor, intenta de nuevo.`)
     } finally {
       setDownloadingPDF(false)
     }
@@ -438,6 +501,18 @@ function ProductsManager() {
             >
               <Download size={18} />
               {downloadingPDF ? "Descargando..." : "Descargar PDF"}
+            </button>
+          )}
+          {selectedCategory !== "all" && selectedCategory !== "out-of-stock" && (
+            <button
+              onClick={handleDownloadCategoryPDF}
+              disabled={downloadingPDF || products.filter((p) => p.category === selectedCategory).length === 0}
+              className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              style={{ backgroundColor: "var(--accent-turquoise)" }}
+              title="Descargar catálogo de la categoría en PDF"
+            >
+              <Share2 size={18} />
+              {downloadingPDF ? "Generando..." : "Compartir"}
             </button>
           )}
           
