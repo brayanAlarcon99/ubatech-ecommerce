@@ -241,7 +241,7 @@ export async function generateOutOfStockPDF(
 
     // Agrupar productos por categoría
     const groupedByCategory = new Map<string, Product[]>()
-    products.forEach((product) => {
+    products.forEach((product: Product) => {
       const categoryName = categoriesMap.get(product.category) || 'Sin categoría'
       if (!groupedByCategory.has(categoryName)) {
         groupedByCategory.set(categoryName, [])
@@ -325,7 +325,7 @@ export async function generateOutOfStockPDF(
       if (outOfStockByProduct && outOfStockByProduct.has(product.id)) {
         const storesWithLowStock = outOfStockByProduct.get(product.id)
         if (storesWithLowStock && storesWithLowStock.length > 0) {
-          storesWithLowStock.forEach((item) => {
+          storesWithLowStock.forEach((item: { store: string; needed: number }) => {
             infoLines.push(`${item.store}: Faltan ${item.needed} unidades`)
           })
         }
@@ -339,7 +339,7 @@ export async function generateOutOfStockPDF(
         infoLines.push(`SKU: ${product.sku}`)
       }
 
-      infoLines.forEach((line) => {
+      infoLines.forEach((line: string) => {
         doc.text(line, infoX, yPosition)
         yPosition += 4
       })
@@ -629,7 +629,7 @@ export async function generateCategoryPDF(
     const displayDetailLines = detailLines.slice(0, maxDetailLines)
     let detailYPos = yPosition + 3
     
-    displayDetailLines.forEach((line, index) => {
+    displayDetailLines.forEach((line: string, index: number) => {
       doc.text(line, xPos, detailYPos)
       detailYPos += 3.5
     })
