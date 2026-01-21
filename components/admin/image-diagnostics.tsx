@@ -59,10 +59,10 @@ export function ImageDiagnostics() {
 
           // Verificar URLs
           const urlsToCheck: string[] = []
-          if (hasImages) {
+          if (hasImages && product.images) {
             urlsToCheck.push(...product.images.filter((img: string) => typeof img === 'string'))
           }
-          if (hasImage) {
+          if (hasImage && product.image) {
             urlsToCheck.push(product.image)
           }
 
