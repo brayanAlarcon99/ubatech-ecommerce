@@ -53,8 +53,8 @@ export default function StorePage() {
   const [error, setError] = useState<string | null>(null);
   const [showHero, setShowHero] = useState(true);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [subcategoriesMap, setSubcategoriesMap] = useState<Map<string, Subcategory[]>>(new Map());
-  const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map());
+  const [subcategoriesMap, setSubcategoriesMap] = useState<Record<string, Subcategory[]>>({});
+  const [categoriesMap, setCategoriesMap] = useState<Record<string, string>>({});
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const router = useRouter();
@@ -116,7 +116,7 @@ export default function StorePage() {
       const productsWithNormalizedPrices = productsData.map(normalizeProductPrice);
 
       const categoriesSnapshot = await getDocs(collection(db, 'categories'));
-      const catMap = new Map<string, string>();
+      const catMap: Record<string, string> = {};
 
       for (const catDoc of categoriesSnapshot.docs) {
         const categoryId = catDoc.id;
@@ -124,7 +124,7 @@ export default function StorePage() {
         const isVisible = catDoc.data().visible !== false; // Por defecto visible es true
         // Solo agregar al mapa si es visible
         if (isVisible) {
-          catMap.set(categoryId, categoryName);
+          catMap[categoryId] = categoryName;
         }
       }
 
@@ -150,7 +150,7 @@ export default function StorePage() {
 
   async function loadSubcategoriesForCategory(categoryId: string) {
     try {
-      const subs = subcategoriesMap.get(categoryId) || [];
+      const subs = subcategoriesMap[categoryId] || [];
       setSubcategories(subs);
       setSubcategory('all');
     } catch (error) {
@@ -180,11 +180,11 @@ export default function StorePage() {
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        categoriesMap.get(p.category)?.toLowerCase().includes(searchTerm.toLowerCase()),
+        categoriesMap[p.category]?.toLowerCase().includes(searchTerm.toLowerCase()),
     );
   }
 
-  const categories = Array.from(categoriesMap.entries())
+  const categories = Object.entries(categoriesMap)
     .map(([id, name]) => ({ id, name }))
     .filter((cat) => {
       return products.some((p) => p.category === cat.id);
@@ -382,7 +382,7 @@ export default function StorePage() {
                   const groupedByCategory = new Map<string, Product[]>();
 
                   productsWithoutDiscount.forEach((product) => {
-                    const categoryName = categoriesMap.get(product.category) || 'Sin categoría';
+                    const categoryName = categoriesMap[product.category] || 'Sin categoría';
                     if (!groupedByCategory.has(categoryName)) {
                       groupedByCategory.set(categoryName, []);
                     }

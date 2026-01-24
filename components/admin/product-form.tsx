@@ -395,101 +395,100 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2 text-black" style={{ color: "var(--primary)" }}>
+                Precio
+              </label>
               <div>
-                <label className="block text-sm font-medium mb-2 text-black" style={{ color: "var(--primary)" }}>
-                  Precio
-                </label>
-                <div>
-                  <input
-                    type="text"
-                    name="price"
-                    value={formData.price > 0 ? String(formData.price) : ""}
-                    onChange={handleChange}
-                    placeholder="Ej: 6000 o 6.000"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                    required
-                  />
-                  {formData.price > 0 && (
-                    <p className="text-xs text-gray-500 mt-1" style={{ color: "var(--accent-green)" }}>
-                      ✓ Mostrará como: ${formatPrice(formData.price)}
-                    </p>
-                  )}
-                </div>
+                <input
+                  type="text"
+                  name="price"
+                  value={formData.price > 0 ? String(formData.price) : ""}
+                  onChange={handleChange}
+                  placeholder="Ej: 6000 o 6.000"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
+                  required
+                />
+                {formData.price > 0 && (
+                  <p className="text-xs text-gray-500 mt-1" style={{ color: "var(--accent-green)" }}>
+                    ✓ Mostrará como: ${formatPrice(formData.price)}
+                  </p>
+                )}
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2 text-black" style={{ color: "var(--primary)" }}>
-                  Stock por tienda
-                </label>
-                <div className="flex flex-col gap-4">
-                  {/* DJCELUTECNICO */}
-                  <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-semibold text-gray-700">DJCELUTECNICO</span>
-                      <span className="text-xs text-gray-500">Stock actual: {formData.stock.djcelutecnico || 0}</span>
-                    </div>
-                    
-                    {/* Stock actual */}
-                    <div className="mb-3">
-                      <label className="text-xs text-gray-600 font-medium block mb-1">Stock Actual</label>
-                      <input
-                        type="number"
-                        name="stock_djcelutecnico"
-                        value={formData.stock.djcelutecnico}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                        placeholder="0"
-                      />
-                    </div>
+            </div>
 
-                    {/* Stock mínimo */}
-                    <div>
-                      <label className="text-xs text-gray-600 font-medium block mb-1">Stock Mínimo ⚠️</label>
-                      <input
-                        type="number"
-                        name="minStock_djcelutecnico"
-                        value={formData.minStockByStore?.djcelutecnico}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                        placeholder="0"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Cantidad mínima de productos que debe haber en esta tienda</p>
-                    </div>
+            <div>
+              <label className="block text-sm font-medium mb-2 text-black" style={{ color: "var(--primary)" }}>
+                Stock por tienda
+              </label>
+              <div className="flex flex-row gap-4">
+                {/* DJCELUTECNICO */}
+                <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 flex-1">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-semibold text-gray-700">DJCELUTECNICO</span>
+                    <span className="text-xs text-gray-500">Stock actual: {formData.stock.djcelutecnico || 0}</span>
+                  </div>
+                  
+                  {/* Stock actual */}
+                  <div className="mb-3">
+                    <label className="text-xs text-gray-600 font-medium block mb-1">Stock Actual</label>
+                    <input
+                      type="number"
+                      name="stock_djcelutecnico"
+                      value={formData.stock.djcelutecnico}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
+                      placeholder="0"
+                    />
                   </div>
 
-                  {/* UBATECH */}
-                  <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-semibold text-gray-700">Ubatech+Pro</span>
-                      <span className="text-xs text-gray-500">Stock actual: {formData.stock.ubatech || 0}</span>
-                    </div>
-                    
-                    {/* Stock actual */}
-                    <div className="mb-3">
-                      <label className="text-xs text-gray-600 font-medium block mb-1">Stock Actual</label>
-                      <input
-                        type="number"
-                        name="stock_ubatech"
-                        value={formData.stock.ubatech}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                        placeholder="0"
-                      />
-                    </div>
+                  {/* Stock mínimo */}
+                  <div>
+                    <label className="text-xs text-gray-600 font-medium block mb-1">Stock Mínimo ⚠️</label>
+                    <input
+                      type="number"
+                      name="minStock_djcelutecnico"
+                      value={formData.minStockByStore?.djcelutecnico}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
+                      placeholder="0"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Cantidad mínima de productos que debe haber en esta tienda</p>
+                  </div>
+                </div>
 
-                    {/* Stock mínimo */}
-                    <div>
-                      <label className="text-xs text-gray-600 font-medium block mb-1">Stock Mínimo ⚠️</label>
-                      <input
-                        type="number"
-                        name="minStock_ubatech"
-                        value={formData.minStockByStore?.ubatech}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                        placeholder="0"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Cantidad mínima de productos que debe haber en esta tienda</p>
-                    </div>
+                {/* UBATECH */}
+                <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 flex-1">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-semibold text-gray-700">Ubatech+Pro</span>
+                    <span className="text-xs text-gray-500">Stock actual: {formData.stock.ubatech || 0}</span>
+                  </div>
+                  
+                  {/* Stock actual */}
+                  <div className="mb-3">
+                    <label className="text-xs text-gray-600 font-medium block mb-1">Stock Actual</label>
+                    <input
+                      type="number"
+                      name="stock_ubatech"
+                      value={formData.stock.ubatech}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  {/* Stock mínimo */}
+                  <div>
+                    <label className="text-xs text-gray-600 font-medium block mb-1">Stock Mínimo ⚠️</label>
+                    <input
+                      type="number"
+                      name="minStock_ubatech"
+                      value={formData.minStockByStore?.ubatech}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
+                      placeholder="0"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Cantidad mínima de productos que debe haber en esta tienda</p>
                   </div>
                 </div>
               </div>

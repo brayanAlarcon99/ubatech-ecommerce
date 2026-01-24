@@ -304,7 +304,7 @@ export async function getSubcategoriesWithCategoryInfo(
  * 
  * @returns Map<categoryId, Subcategory[]>
  */
-export async function getAllSubcategoriesGrouped(): Promise<Map<string, Subcategory[]>> {
+export async function getAllSubcategoriesGrouped(): Promise<Record<string, Subcategory[]>> {
   try {
     // 🚀 OPTIMIZACIÓN FASE 2: Cachear resultados
     // TTL: 1 hora (3600 segundos)
@@ -314,7 +314,7 @@ export async function getAllSubcategoriesGrouped(): Promise<Map<string, Subcateg
         const db = getDb()
         const snapshot = await getDocs(collection(db, "subcategories"))
         
-        const subMap = new Map<string, Subcategory[]>()
+        const subMap: Record<string, Subcategory[]> = {}
         
         for (const doc of snapshot.docs) {
           const sub = {
@@ -323,10 +323,10 @@ export async function getAllSubcategoriesGrouped(): Promise<Map<string, Subcateg
           } as Subcategory
           
           const categoryId = sub.categoryId
-          if (!subMap.has(categoryId)) {
-            subMap.set(categoryId, [])
+          if (!subMap[categoryId]) {
+            subMap[categoryId] = []
           }
-          subMap.get(categoryId)!.push(sub)
+          subMap[categoryId].push(sub)
         }
         
         console.log(`[PERF] getAllSubcategoriesGrouped: ${snapshot.size} subcategorías en 1 query`)
@@ -336,6 +336,6 @@ export async function getAllSubcategoriesGrouped(): Promise<Map<string, Subcateg
     )
   } catch (error) {
     console.error("[v0] Error loading all subcategories grouped:", error)
-    return new Map()
+    return {}
   }
 }

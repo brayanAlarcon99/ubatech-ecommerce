@@ -175,13 +175,13 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
 
           <div className="flex items-center justify-between mt-1 sm:mt-2 gap-2">
             <div className="flex flex-col">
-              {product.discountedPrice && product.discountedPrice > 0 && (
+              {getDiscountPercentage() > 0 && (
                 <span className="text-[8px] sm:text-xs text-gray-500 line-through">
                   {formatPriceWithCurrency(product.price)}
                 </span>
               )}
               <span className="text-sm sm:text-lg font-bold" style={{ color: "var(--accent-green)" }}>
-                {formatPriceWithCurrency(product.discountedPrice || product.price)}
+                {getDiscountPercentage() > 0 ? formatPriceWithCurrency(product.discountedPrice!) : formatPriceWithCurrency(product.price)}
               </span>
             </div>
             {getDiscountPercentage() > 0 && (
@@ -287,17 +287,22 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-2">
                       <span className="text-gray-700 font-semibold text-sm">Precio:</span>
                       <div className="flex flex-col items-end gap-1">
-                        {product.discountedPrice && product.discountedPrice > 0 && (
-                          <span className="text-sm sm:text-base text-gray-500 line-through">
-                            {formatPriceWithCurrency(product.price)}
-                          </span>
-                        )}
-                        <span className="text-xl sm:text-3xl font-bold" style={{ color: "var(--accent-green)" }}>
-                          {formatPriceWithCurrency(product.discountedPrice || product.price)}
-                        </span>
                         {getDiscountPercentage() > 0 && (
-                          <span className="text-white text-xs sm:text-sm font-bold px-3 py-1 rounded-full" style={{ backgroundColor: "var(--accent-cyan)" }}>
-                            -{getDiscountPercentage()}% de descuento
+                          <>
+                            <span className="text-sm sm:text-base text-gray-500 line-through">
+                              {formatPriceWithCurrency(product.price)}
+                            </span>
+                            <span className="text-xl sm:text-3xl font-bold" style={{ color: "var(--accent-green)" }}>
+                              {formatPriceWithCurrency(product.discountedPrice!)}
+                            </span>
+                            <span className="text-white text-xs sm:text-sm font-bold px-3 py-1 rounded-full" style={{ backgroundColor: "var(--accent-cyan)" }}>
+                              -{getDiscountPercentage()}% de descuento
+                            </span>
+                          </>
+                        )}
+                        {getDiscountPercentage() === 0 && (
+                          <span className="text-xl sm:text-3xl font-bold" style={{ color: "var(--accent-green)" }}>
+                            {formatPriceWithCurrency(product.price)}
                           </span>
                         )}
                       </div>

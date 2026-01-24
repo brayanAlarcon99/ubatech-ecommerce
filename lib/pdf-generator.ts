@@ -186,7 +186,7 @@ async function loadImage(url: string, retryCount: number = 0, maxRetries: number
 
 export async function generateOutOfStockPDF(
   products: Product[],
-  categoriesMap: Map<string, string>,
+  categoriesMap: Record<string, string>,
   options: PDFGeneratorOptions = {}
 ) {
   if (!products || products.length === 0) {
@@ -242,7 +242,7 @@ export async function generateOutOfStockPDF(
     // Agrupar productos por categoría
     const groupedByCategory = new Map<string, Product[]>()
     products.forEach((product: Product) => {
-      const categoryName = categoriesMap.get(product.category) || 'Sin categoría'
+      const categoryName = categoriesMap[product.category] || 'Sin categoría'
       if (!groupedByCategory.has(categoryName)) {
         groupedByCategory.set(categoryName, [])
       }
@@ -322,8 +322,8 @@ export async function generateOutOfStockPDF(
       infoLines.push(`Precio: $${formattedPrice}`)
 
       // Agregar tiendas con stock bajo y cantidad faltante
-      if (outOfStockByProduct && outOfStockByProduct.has(product.id)) {
-        const storesWithLowStock = outOfStockByProduct.get(product.id)
+      if (outOfStockByProduct && (outOfStockByProduct instanceof Map ? outOfStockByProduct.has(product.id) : product.id in outOfStockByProduct)) {
+        const storesWithLowStock = outOfStockByProduct instanceof Map ? outOfStockByProduct.get(product.id) : (outOfStockByProduct as any)[product.id]
         if (storesWithLowStock && storesWithLowStock.length > 0) {
           storesWithLowStock.forEach((item: { store: string; needed: number }) => {
             infoLines.push(`${item.store}: Faltan ${item.needed} unidades`)

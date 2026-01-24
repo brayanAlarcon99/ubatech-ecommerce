@@ -99,7 +99,10 @@ function ProductsManager() {
       
       console.log(`[ProductsManager] 📊 Generating out-of-stock PDF with ${validProducts.length} products`)
 
-      await generateOutOfStockPDF(validProducts, categoriesMap, {
+      // Convert Map to Record for PDF generator
+      const categoriesRecord = Object.fromEntries(categoriesMap)
+
+      await generateOutOfStockPDF(validProducts, categoriesRecord, {
         fileName: `Productos_Stock_Bajo_${storesText}_${new Date().getTime()}.pdf`,
         title: `Reporte de Productos con Stock Bajo (${storesText})`,
         outOfStockByProduct
@@ -187,20 +190,19 @@ function ProductsManager() {
       }))
       setCategories(cats)
 
-      const catMap = new Map<string, string>()
-      for (const catDoc of categoriesSnapshot.docs) {
-        catMap.set(catDoc.id, catDoc.data().name)
-      }
-      setCategoriesMap(catMap)
+      const catMapObject = Object.fromEntries(
+        categoriesSnapshot.docs.map((doc) => [doc.id, doc.data().name])
+      ) as Record<string, string>
+      setCategoriesMap(new Map(Object.entries(catMapObject)))
 
-      const normalizedProds = normalizeProducts(prodsWithNormalizedPrices, catMap)
+      const normalizedProds = normalizeProducts(prodsWithNormalizedPrices, catMapObject)
       setProducts(normalizedProds)
 
       // 🚀 OPTIMIZACIÓN: Usar query única que agrupa por categoryId
       // ANTES: N queries secuenciales (30-50 segundos)
       // DESPUÉS: 1 sola query (2-3 segundos)
-      const subMap = await getAllSubcategoriesGrouped()
-      setSubcategoriesMap(subMap)
+      const subMapRecord = await getAllSubcategoriesGrouped()
+      setSubcategoriesMap(new Map(Object.entries(subMapRecord)))
       
       console.timeEnd("[PERF] loadData")
     } catch (error) {

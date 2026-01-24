@@ -9,16 +9,16 @@ import type { Product } from "@/types"
  */
 export function normalizeProducts(
   products: Product[],
-  categoriesMap: Map<string, string>
+  categoriesMap: Record<string, string>
 ): Product[] {
   return products.map((product) => {
     // Si la categoría es un ID válido en el mapa, está normalizada
-    if (categoriesMap.has(product.category)) {
+    if (product.category in categoriesMap) {
       return product
     }
 
     // Si no es un ID válido, buscar si es un nombre
-    for (const [id, name] of categoriesMap.entries()) {
+    for (const [id, name] of Object.entries(categoriesMap)) {
       if (name === product.category) {
         // Encontramos el ID correspondiente al nombre
         return {
