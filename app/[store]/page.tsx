@@ -111,6 +111,8 @@ export default function StorePage() {
       loadSubcategoriesForCategory(category);
     }
   }, [category, loadSubcategoriesForCategory]);
+
+  async function loadProducts() {
     try {
       setLoading(true);
       setError(null);
