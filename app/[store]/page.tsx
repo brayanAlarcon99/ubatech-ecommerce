@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import Header from '@/components/header';
@@ -62,7 +62,7 @@ export default function StorePage() {
 
   useEffect(() => {
     checkPublicStatus();
-  }, [router]);
+  }, []);
 
   async function checkPublicStatus() {
     try {
@@ -91,6 +91,18 @@ export default function StorePage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Memoize loadSubcategoriesForCategory para evitar re-renders infinitos
+  const loadSubcategoriesForCategory = useCallback((categoryId: string) => {
+    try {
+      const subs = subcategoriesMap[categoryId] || [];
+      setSubcategories(subs);
+      setSubcategory('all');
+    } catch (error) {
+      console.error('[v0] Error loading subcategories:', error);
+      setSubcategories([]);
+    }
+  }, [subcategoriesMap]);
+
   useEffect(() => {
     if (category === 'all') {
       setSubcategories([]);
@@ -98,9 +110,7 @@ export default function StorePage() {
     } else {
       loadSubcategoriesForCategory(category);
     }
-  }, [category, subcategoriesMap]);
-
-  async function loadProducts() {
+  }, [category, loadSubcategoriesForCategory]);
     try {
       setLoading(true);
       setError(null);
@@ -153,17 +163,6 @@ export default function StorePage() {
       setError('Error al cargar productos. Por favor, verifica tu conexión a Firebase.');
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function loadSubcategoriesForCategory(categoryId: string) {
-    try {
-      const subs = subcategoriesMap[categoryId] || [];
-      setSubcategories(subs);
-      setSubcategory('all');
-    } catch (error) {
-      console.error('[v0] Error loading subcategories:', error);
-      setSubcategories([]);
     }
   }
 

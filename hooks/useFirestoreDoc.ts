@@ -185,7 +185,8 @@ export function useFirestoreDoc<T = any>(
       // Modo una sola lectura
       loadOnce()
     }
-  }, [collectionName, docId, realtime, loadOnce, setupRealtime])
+    // IMPORTANTE: Solo depender de valores primitivos que no cambien frecuentemente
+  }, [collectionName, docId, realtime])
 
   // Función para recargar manualmente
   const reload = useCallback(async () => {

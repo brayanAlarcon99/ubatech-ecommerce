@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from \"react\"
 import { ShoppingCart, Plus, Minus, X } from "lucide-react"
 import type { Product } from "@/types"
 import { useCart } from "@/lib/cart-context"
@@ -26,29 +26,11 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
   const [liveStock] = useState<number>(maxQuantity)
   const { addToCart } = useCart()
 
-  useEffect(() => {
-    if (product.category) {
-      loadCategoryAndSubcategory()
-    }
-  }, [product.category, product.subcategory])
-
-  // Cerrar modal al hacer clic fuera
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        setShowModal(false)
-      }
-    }
-
-    if (showModal) {
-      document.addEventListener("mousedown", handleClickOutside)
-      return () => {
-        document.removeEventListener("mousedown", handleClickOutside)
-      }
-    }
-  }, [showModal])
-
-  const loadCategoryAndSubcategory = async () => {
+  // Memoized callback para evitar llamadas infinitas
+  const loadCategoryAndSubcategory = useCallback(async () => {
+    // Evitar cargas duplicadas si ya están cargadas
+    if (categoryName) return
+    
     setLoading(true)
     try {
       const db = getDb()
@@ -77,7 +59,29 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [product.category, product.subcategory, categoryName])
+
+  useEffect(() => {
+    if (product.category) {
+      loadCategoryAndSubcategory()
+    }
+  }, [product.category, product.subcategory, loadCategoryAndSubcategory])
+
+  // Cerrar modal al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        setShowModal(false)
+      }
+    }
+
+    if (showModal) {
+      document.addEventListener("mousedown", handleClickOutside)
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside)
+      }
+    }
+  }, [showModal])
 
   const handleAddToCart = () => {
     addToCart({ ...product, quantity })
