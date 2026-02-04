@@ -51,5 +51,5 @@ export const getDb = () => {
   return db
 }
 
-export { app }
+export { app, db }
 export default db

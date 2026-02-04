@@ -6,7 +6,7 @@ import type { Product } from '@/types'
 interface PDFGeneratorOptions {
   fileName?: string
   title?: string
-  outOfStockByProduct?: Map<string, { store: string; needed: number }[]>
+  outOfStockByProduct?: Map<string, { store: string; stockToFetch?: number; needed?: number }[]>
 }
 
 async function loadImage(url: string, retryCount: number = 0, maxRetries: number = 2): Promise<string | null> {
@@ -325,8 +325,10 @@ export async function generateOutOfStockPDF(
       if (outOfStockByProduct && (outOfStockByProduct instanceof Map ? outOfStockByProduct.has(product.id) : product.id in outOfStockByProduct)) {
         const storesWithLowStock = outOfStockByProduct instanceof Map ? outOfStockByProduct.get(product.id) : (outOfStockByProduct as any)[product.id]
         if (storesWithLowStock && storesWithLowStock.length > 0) {
-          storesWithLowStock.forEach((item: { store: string; needed: number }) => {
-            infoLines.push(`${item.store}: Faltan ${item.needed} unidades`)
+          storesWithLowStock.forEach((item: { store: string; stockToFetch?: number; needed?: number }) => {
+            const quantity = item.stockToFetch ?? item.needed ?? 0
+            const label = item.stockToFetch !== undefined ? "a traer" : "faltan"
+            infoLines.push(`${item.store}: ${label} ${quantity} unidades`)
           })
         }
       }

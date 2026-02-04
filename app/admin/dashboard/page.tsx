@@ -20,27 +20,52 @@ import { useAdminInactivity } from "@/hooks/use-admin-inactivity"
 import { getInactivityTimeout } from "@/lib/admin-auth"
 import { useToast } from "@/hooks/use-toast"
 import ScrollToTop from "@/components/scroll-to-top"
+import { useSessionConflictDetector } from "@/hooks/use-session-conflict-detector"
+import ActiveSessionsManager from "@/components/admin/active-sessions-manager"
 
 export default function AdminDashboard() {
   const [user, setUser] = useState<import("firebase/auth").User | null>(null)
+  const [token, setToken] = useState<string | null>(null)
   const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("dashboard")
   const [showWarning, setShowWarning] = useState(false)
   const [countdownSeconds, setCountdownSeconds] = useState(0)
   
-  // Obtener timeout configurado
-  const inactivityMinutes = getInactivityTimeout()
+  // Obtener timeout configurado (solo en cliente)
+  const inactivityMinutes = typeof window !== 'undefined' ? getInactivityTimeout() : 5
   const { handleLogout } = useAdminInactivity({ timeoutMinutes: inactivityMinutes })
+
+  // Activar detector de conflictos de sesión
+  useSessionConflictDetector({
+    userId: user?.uid || null,
+    token,
+    enabled: true
+  })
+
+  // Marcar que estamos en el cliente
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   useEffect(() => {
     const auth = getAuth(app)
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser)
+        
+        // Obtener el token para las APIs
+        try {
+          const tokenValue = await firebaseUser.getIdToken()
+          setToken(tokenValue)
+        } catch (err) {
+          console.error("Error getting token:", err)
+        }
+        
         // Consultar el rol en Firestore
         try {
           const db = getDb()
@@ -89,6 +114,7 @@ export default function AdminDashboard() {
         }
       } else {
         setUser(null)
+        setToken(null)
         setRole(null)
         setLoading(false)
         router.push("/admin/login")
@@ -124,7 +150,7 @@ export default function AdminDashboard() {
     return () => window.removeEventListener("adminInactivityWarning", handleInactivityWarning)
   }, [toast])
 
-  if (loading) {
+  if (loading || !isClient) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div
@@ -162,6 +188,18 @@ export default function AdminDashboard() {
         <div className="flex flex-1 overflow-hidden">
           <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} userRole={role} />
           <main className="flex-1 overflow-y-auto p-8" style={{ backgroundColor: "#f8fafc" }}>
+            {user && token && (
+              <ActiveSessionsManager
+                userId={user.uid}
+                token={token}
+                onSessionClosed={() => {
+                  toast({
+                    title: "Sesión cerrada",
+                    description: "La sesión remota ha sido cerrada correctamente"
+                  })
+                }}
+              />
+            )}
             {activeTab === "dashboard" && <Analytics />}
             {activeTab === "products" && <ProductsManager />}
             {activeTab === "categories" && <CategoriesManager />}

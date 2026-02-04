@@ -9,7 +9,7 @@ export interface Product {
   stock: {
     [storeId: string]: number
   }
-  minStockByStore?: {
+  stockToFetchByStore?: {
     [storeId: string]: number
   }
   image?: string // Mantener por compatibilidad con datos existentes

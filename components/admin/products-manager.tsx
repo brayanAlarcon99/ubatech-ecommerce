@@ -19,7 +19,7 @@ function ProductsManager() {
     { id: "ubatech", name: "Ubatech+Pro" },
   ])
   const [selectedStore, setSelectedStore] = useState<string>("djcelutecnico")
-  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([])
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; position?: number }>>([])
   const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map())
   const [subcategoriesMap, setSubcategoriesMap] = useState<Map<string, Subcategory[]>>(new Map())
   const [loading, setLoading] = useState(false)
@@ -30,7 +30,7 @@ function ProductsManager() {
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [showStockPanel, setShowStockPanel] = useState<{ open: boolean, product: Product | null }>({ open: false, product: null })
-  const [stockInput, setStockInput] = useState({ tienda: "djcelutecnico", cantidad: 0 })
+  const [stockInput, setStockInput] = useState({ ubatech: 0, djcelutecnico: 0 })
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -41,74 +41,70 @@ function ProductsManager() {
     try {
       setDownloadingPDF(true)
       
-      // Obtener productos que están por debajo del stock mínimo
+      // Obtener productos que tienen stock a traer pendiente
       const allOutOfStockProducts = products.filter((p) => {
-        const djMinStock = p.minStockByStore?.djcelutecnico ?? 0
-        const ubaMinStock = p.minStockByStore?.ubatech ?? 0
-        const djCurrentStock = p.stock?.djcelutecnico ?? 0
-        const ubaCurrentStock = p.stock?.ubatech ?? 0
-        return djCurrentStock < djMinStock || ubaCurrentStock < ubaMinStock
+        const djStockToFetch = p.stockToFetchByStore?.djcelutecnico ?? 0
+        const ubaStockToFetch = p.stockToFetchByStore?.ubatech ?? 0
+        return djStockToFetch > 0 || ubaStockToFetch > 0
       })
       
       if (allOutOfStockProducts.length === 0) {
-        alert("No hay productos por debajo del stock mínimo para descargar")
+        alert("No hay productos con stock pendiente a traer para descargar")
         return
       }
 
       // Validar que los productos tengan datos mínimos
       const validProducts = allOutOfStockProducts.filter(p => {
         if (!p.name || !p.name.trim()) {
-          console.warn(`[PDF] Skipping out-of-stock product with no name: ${p.id}`)
+          console.warn(`[PDF] Skipping product with no name: ${p.id}`)
           return false
         }
         return true
       })
 
       if (validProducts.length === 0) {
-        alert("No hay productos válidos con stock bajo para descargar")
+        alert("No hay productos válidos con stock pendiente para descargar")
         return
       }
 
-      // Crear mapa de cantidad faltante por tienda y producto
-      const outOfStockByProduct = new Map<string, { store: string; needed: number }[]>()
+      // Crear mapa de cantidad pendiente a traer por tienda y producto
+      const outOfStockByProduct = new Map<string, { store: string; stockToFetch: number }[]>()
       validProducts.forEach((p) => {
-        const storesWithLowStock: { store: string; needed: number }[] = []
+        const storesWithStockToFetch: { store: string; stockToFetch: number }[] = []
         
-        const djMinStock = p.minStockByStore?.djcelutecnico ?? 0
-        const djCurrentStock = p.stock?.djcelutecnico ?? 0
-        if (djCurrentStock < djMinStock) {
-          storesWithLowStock.push({
+        const djStockToFetch = p.stockToFetchByStore?.djcelutecnico ?? 0
+        if (djStockToFetch > 0) {
+          storesWithStockToFetch.push({
             store: "DJCELUTECNICO",
-            needed: djMinStock - djCurrentStock
+            stockToFetch: djStockToFetch
           })
         }
         
-        const ubaMinStock = p.minStockByStore?.ubatech ?? 0
-        const ubaCurrentStock = p.stock?.ubatech ?? 0
-        if (ubaCurrentStock < ubaMinStock) {
-          storesWithLowStock.push({
+        const ubaStockToFetch = p.stockToFetchByStore?.ubatech ?? 0
+        if (ubaStockToFetch > 0) {
+          storesWithStockToFetch.push({
             store: "Ubatech+Pro",
-            needed: ubaMinStock - ubaCurrentStock
+            stockToFetch: ubaStockToFetch
           })
         }
         
-        outOfStockByProduct.set(p.id, storesWithLowStock)
+        outOfStockByProduct.set(p.id, storesWithStockToFetch)
       })
 
       const storesText = selectedStore === "all" ? "Todas las Tiendas" : selectedStore
       
-      console.log(`[ProductsManager] 📊 Generating out-of-stock PDF with ${validProducts.length} products`)
+      console.log(`[ProductsManager] 📊 Generating stock to fetch PDF with ${validProducts.length} products`)
 
       // Convert Map to Record for PDF generator
       const categoriesRecord = Object.fromEntries(categoriesMap)
 
       await generateOutOfStockPDF(validProducts, categoriesRecord, {
-        fileName: `Productos_Stock_Bajo_${storesText}_${new Date().getTime()}.pdf`,
-        title: `Reporte de Productos con Stock Bajo (${storesText})`,
+        fileName: `Productos_Stock_a_Traer_${storesText}_${new Date().getTime()}.pdf`,
+        title: `Reporte de Productos con Stock a Traer (${storesText})`,
         outOfStockByProduct
       })
 
-      console.log(`[ProductsManager] ✅ Out-of-stock PDF generated successfully`)
+      console.log(`[ProductsManager] ✅ Stock to fetch PDF generated successfully`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Error desconocido"
       console.error("[ProductsManager] ❌ Error downloading PDF:", error)
@@ -187,8 +183,11 @@ function ProductsManager() {
       const cats = categoriesSnapshot.docs.map((doc) => ({
         id: doc.id,
         name: doc.data().name,
+        position: doc.data().position ?? 999,
       }))
-      setCategories(cats)
+      // Ordenar categorías por posición
+      const sortedCats = cats.sort((a, b) => (a.position ?? 999) - (b.position ?? 999))
+      setCategories(sortedCats)
 
       const catMapObject = Object.fromEntries(
         categoriesSnapshot.docs.map((doc) => [doc.id, doc.data().name])
@@ -332,7 +331,7 @@ function ProductsManager() {
       {showStockPanel.open && showStockPanel.product && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => {
           setShowStockPanel({ open: false, product: null });
-          setStockInput({ tienda: "djcelutecnico", cantidad: 0 });
+          setStockInput({ ubatech: 0, djcelutecnico: 0 });
         }}>
           <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-bold mb-8 text-center text-black">Agregar Stock</h2>
@@ -340,114 +339,119 @@ function ProductsManager() {
             
             {/* Sección Tienda 1: UBATECH */}
             <div className="mb-8 pb-8 border-b border-gray-300">
-              <h3 className="text-lg font-bold text-black mb-4">Tienda UBATECH</h3>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad a agregar</label>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setStockInput(s => ({ ...s, tienda: "ubatech", cantidad: Math.max(0, s.cantidad - 1) }))}
-                      className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
-                    >
-                      −
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStockInput(s => ({ ...s, tienda: "ubatech", cantidad: s.cantidad + 1 }))}
-                      className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <input
-                    type="number"
-                    className="flex-1 px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-black text-center font-semibold text-sm sm:text-lg"
-                    placeholder="0"
-                    value={stockInput.tienda === "ubatech" ? stockInput.cantidad : 0}
-                    min={0}
-                    onChange={e => setStockInput(s => ({ ...s, tienda: "ubatech", cantidad: parseInt(e.target.value) || 0 }))}
-                  />
+              <h3 className="text-lg font-bold text-black mb-2">Tienda UBATECH</h3>
+              <p className="text-sm text-gray-600 mb-4">Stock actual: <span className="font-bold text-black">{showStockPanel.product.stock?.ubatech ?? 0}</span></p>
+              
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad a agregar</label>
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setStockInput(s => ({ ...s, ubatech: Math.max(0, s.ubatech - 1) }))}
+                    className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStockInput(s => ({ ...s, ubatech: s.ubatech + 1 }))}
+                    className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
+                  >
+                    +
+                  </button>
                 </div>
-                <button
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors"
-                  onClick={async () => {
-                    if (!showStockPanel.product || stockInput.cantidad < 1) return;
-                    const db = getDb();
-                    const prodRef = doc(db, "products", showStockPanel.product.id);
-                    const newStock = {
-                      ...showStockPanel.product.stock,
-                      ubatech: (showStockPanel.product.stock?.ubatech ?? 0) + stockInput.cantidad
-                    };
-                    await updateDoc(prodRef, { stock: newStock });
-                    setStockInput({ tienda: "djcelutecnico", cantidad: 0 });
-                    await loadData();
-                  }}
-                  disabled={stockInput.tienda !== "ubatech" || stockInput.cantidad < 1}
-                >
-                  Agregar Stock
-                </button>
+                <input
+                  type="number"
+                  className="flex-1 px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-black text-center font-semibold text-sm sm:text-lg"
+                  placeholder="0"
+                  value={stockInput.ubatech}
+                  min={0}
+                  onChange={e => setStockInput(s => ({ ...s, ubatech: parseInt(e.target.value) || 0 }))}
+                />
               </div>
             </div>
 
             {/* Sección Tienda 2: DJCELUTECNICO */}
             <div className="mb-8 pb-8">
-              <h3 className="text-lg font-bold text-black mb-4">Tienda DJCELUTECNICO</h3>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad a agregar</label>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setStockInput(s => ({ ...s, tienda: "djcelutecnico", cantidad: Math.max(0, s.cantidad - 1) }))}
-                      className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
-                    >
-                      −
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStockInput(s => ({ ...s, tienda: "djcelutecnico", cantidad: s.cantidad + 1 }))}
-                      className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <input
-                    type="number"
-                    className="flex-1 px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-black text-center font-semibold text-sm sm:text-lg"
-                    placeholder="0"
-                    value={stockInput.tienda === "djcelutecnico" ? stockInput.cantidad : 0}
-                    min={0}
-                    onChange={e => setStockInput(s => ({ ...s, tienda: "djcelutecnico", cantidad: parseInt(e.target.value) || 0 }))}
-                  />
+              <h3 className="text-lg font-bold text-black mb-2">Tienda DJCELUTECNICO</h3>
+              <p className="text-sm text-gray-600 mb-4">Stock actual: <span className="font-bold text-black">{showStockPanel.product.stock?.djcelutecnico ?? 0}</span></p>
+              
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad a agregar</label>
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setStockInput(s => ({ ...s, djcelutecnico: Math.max(0, s.djcelutecnico - 1) }))}
+                    className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStockInput(s => ({ ...s, djcelutecnico: s.djcelutecnico + 1 }))}
+                    className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-3 rounded-lg transition-colors"
+                  >
+                    +
+                  </button>
                 </div>
-                <button
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors"
-                  onClick={async () => {
-                    if (!showStockPanel.product || stockInput.cantidad < 1) return;
-                    const db = getDb();
-                    const prodRef = doc(db, "products", showStockPanel.product.id);
-                    const newStock = {
-                      ...showStockPanel.product.stock,
-                      djcelutecnico: (showStockPanel.product.stock?.djcelutecnico ?? 0) + stockInput.cantidad
-                    };
-                    await updateDoc(prodRef, { stock: newStock });
-                    setStockInput({ tienda: "djcelutecnico", cantidad: 0 });
-                    await loadData();
-                  }}
-                  disabled={stockInput.tienda !== "djcelutecnico" || stockInput.cantidad < 1}
-                >
-                  Agregar Stock
-                </button>
+                <input
+                  type="number"
+                  className="flex-1 px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-black text-center font-semibold text-sm sm:text-lg"
+                  placeholder="0"
+                  value={stockInput.djcelutecnico}
+                  min={0}
+                  onChange={e => setStockInput(s => ({ ...s, djcelutecnico: parseInt(e.target.value) || 0 }))}
+                />
               </div>
             </div>
+
+            {/* Botón único para agregar a ambas tiendas */}
+            <button
+              className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors mb-4"
+              onClick={async () => {
+                if (!showStockPanel.product || (stockInput.ubatech === 0 && stockInput.djcelutecnico === 0)) return;
+                const db = getDb();
+                const prodRef = doc(db, "products", showStockPanel.product.id);
+                
+                // Actualizar ambas tiendas
+                const currentStockUbatech = showStockPanel.product.stock?.ubatech ?? 0;
+                const currentStockDjcelutecnico = showStockPanel.product.stock?.djcelutecnico ?? 0;
+                const stockToFetchUbatech = showStockPanel.product.stockToFetchByStore?.ubatech ?? 0;
+                const stockToFetchDjcelutecnico = showStockPanel.product.stockToFetchByStore?.djcelutecnico ?? 0;
+                
+                const newStock = {
+                  ...showStockPanel.product.stock,
+                  ubatech: currentStockUbatech + stockInput.ubatech,
+                  djcelutecnico: currentStockDjcelutecnico + stockInput.djcelutecnico
+                };
+                
+                const newStockToFetch = {
+                  ubatech: Math.max(0, stockToFetchUbatech - stockInput.ubatech),
+                  djcelutecnico: Math.max(0, stockToFetchDjcelutecnico - stockInput.djcelutecnico)
+                };
+                
+                await updateDoc(prodRef, { 
+                  stock: newStock,
+                  stockToFetchByStore: newStockToFetch
+                });
+                
+                setStockInput({ ubatech: 0, djcelutecnico: 0 });
+                await loadData();
+                
+                // Cerrar automáticamente la ventana emergente
+                setShowStockPanel({ open: false, product: null });
+              }}
+              disabled={stockInput.ubatech === 0 && stockInput.djcelutecnico === 0}
+            >
+              Agregar Stock
+            </button>
 
             {/* Botón Cerrar */}
             <button
               className="w-full px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold transition-colors"
               onClick={() => {
                 setShowStockPanel({ open: false, product: null });
-                setStockInput({ tienda: "djcelutecnico", cantidad: 0 });
+                setStockInput({ ubatech: 0, djcelutecnico: 0 });
               }}
             >
               Cerrar
@@ -584,16 +588,15 @@ function ProductsManager() {
           if (selectedCategory === "all") {
             categoryMatch = true
           } else if (selectedCategory === "out-of-stock") {
-            // Mostrar productos que están por debajo del stock mínimo en CUALQUIER tienda
-            let hasLowStock = false
+            // Mostrar productos donde el stock a traer es mayor a 0 (hay cantidad pendiente de traer)
+            let hasStockToFetch = false
             stores.forEach((store) => {
-              const minStock = product.minStockByStore?.[store.id] ?? 0
-              const currentStock = product.stock?.[store.id] ?? 0
-              if (currentStock < minStock) {
-                hasLowStock = true
+              const stockToFetch = product.stockToFetchByStore?.[store.id] ?? 0
+              if (stockToFetch > 0) {
+                hasStockToFetch = true
               }
             })
-            categoryMatch = hasLowStock
+            categoryMatch = hasStockToFetch
           } else {
             categoryMatch = product.category === selectedCategory
           }
@@ -615,9 +618,19 @@ function ProductsManager() {
           groupedByCategory.get(categoryName)!.push(product)
         })
 
-        // Ordenar categorías alfabéticamente y productos por precio
+        // Crear un mapa de nombre -> posición para ordenar respetando el orden del panel admin
+        const categoryPositionMap = new Map<string, number>()
+        categories.forEach((cat) => {
+          categoryPositionMap.set(cat.name, cat.position ?? 999)
+        })
+
+        // Ordenar categorías por posición (igual que en la página pública) y productos por precio
         const sortedCategories = Array.from(groupedByCategory.entries())
-          .sort((a, b) => a[0].localeCompare(b[0]))
+          .sort((a, b) => {
+            const posA = categoryPositionMap.get(a[0]) ?? 999
+            const posB = categoryPositionMap.get(b[0]) ?? 999
+            return posA - posB
+          })
           .map(([categoryName, categoryProducts]) => [
             categoryName,
             categoryProducts.sort((a, b) => (a.price || 0) - (b.price || 0))
@@ -633,15 +646,14 @@ function ProductsManager() {
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3">
                   {categoryProducts.map((product) => {
         const isOutOfStockFilter = selectedCategory === "out-of-stock"
-        let storesWithLowStock: { store: { id: string; name: string }; stockNeeded: number }[] = []
+        let storesWithStockToFetch: { store: { id: string; name: string }; stockToFetch: number }[] = []
         if (isOutOfStockFilter) {
           stores.forEach((store) => {
-            const minStock = product.minStockByStore?.[store.id] ?? 0
-            const currentStock = product.stock?.[store.id] ?? 0
-            if (currentStock < minStock) {
-              storesWithLowStock.push({
+            const stockToFetch = product.stockToFetchByStore?.[store.id] ?? 0
+            if (stockToFetch > 0) {
+              storesWithStockToFetch.push({
                 store,
-                stockNeeded: minStock - currentStock
+                stockToFetch
               })
             }
           })
@@ -699,21 +711,22 @@ function ProductsManager() {
                   )}
                 </div>
                 {isOutOfStockFilter ? (
-                  <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
-                    <p className="text-xs font-semibold text-red-700 mb-1">Stock Bajo:</p>
+                  <div className="mt-2 p-2 bg-yellow-50 rounded border border-yellow-200">
+                    <p className="text-xs font-semibold text-yellow-700 mb-1">Stock a Traer:</p>
                     <div className="space-y-1">
-                      {storesWithLowStock.map((item) => (
-                        <div key={item.store.id} className="text-xs text-red-600 font-semibold">
-                          <span className="font-bold text-red-700">{item.store.name}:</span> Faltan <span className="font-bold text-lg text-red-600">{item.stockNeeded}</span> unidades
+                      {storesWithStockToFetch.map((item) => (
+                        <div key={item.store.id} className="text-xs text-yellow-600 font-semibold">
+                          <span className="font-bold text-yellow-700">{item.store.name}:</span> {item.stockToFetch} unidades pendientes
                         </div>
                       ))}
                     </div>
                   </div>
                 ) : (
                   <div className="text-xs space-y-0.5">
+                    <p className="font-semibold text-gray-700 mb-1">Stock a Traer:</p>
                     {stores.map((store) => (
-                      <div key={store.id} className={`${(product.stock?.[store.id] ?? 0) === 0 ? "text-red-600 font-bold" : ""}`}>
-                        {store.name}: {product.stock?.[store.id] ?? 0}
+                      <div key={store.id} className={`${(product.stockToFetchByStore?.[store.id] ?? 0) === 0 ? "text-red-600 font-bold" : ""}`}>
+                        {store.name}: {product.stockToFetchByStore?.[store.id] ?? 0}
                       </div>
                     ))}
                   </div>
@@ -755,9 +768,8 @@ function ProductsManager() {
       {products.filter((p) => {
         if (selectedCategory === "all") return true
         if (selectedCategory === "out-of-stock") {
-          const minStock = p.minStockByStore?.[selectedStore] ?? 0
-          const currentStock = p.stock?.[selectedStore] ?? 0
-          return currentStock < minStock
+          const stockToFetch = p.stockToFetchByStore?.[selectedStore] ?? 0
+          return stockToFetch > 0
         }
         return p.category === selectedCategory
       }).length === 0 && (

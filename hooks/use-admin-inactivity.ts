@@ -20,6 +20,7 @@ export function useAdminInactivity(config?: InactivityConfig) {
 
   const getInactivityTimeout = useCallback(() => {
     if (typeof window === "undefined") return inactivityMinutes * 60 * 1000
+    if (typeof localStorage === "undefined") return inactivityMinutes * 60 * 1000
     
     const customTimeout = localStorage.getItem("adminInactivityTimeout")
     if (customTimeout) {
@@ -35,6 +36,10 @@ export function useAdminInactivity(config?: InactivityConfig) {
   }, [getInactivityTimeout, warningMinutes])
 
   const handleLogout = useCallback(async () => {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return
+    }
+    
     localStorage.removeItem("adminInactivityWarning")
     await logoutAdmin()
     router.push("/admin/login")
@@ -66,6 +71,11 @@ export function useAdminInactivity(config?: InactivityConfig) {
   }, [getInactivityTimeout, getWarningTimeout, handleLogout])
 
   useEffect(() => {
+    // Asegurar que estamos en el cliente
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return
+    }
+
     // Resetear timer cuando el usuario interactúa
     const events = ["mousedown", "keydown", "touchstart", "click"]
 

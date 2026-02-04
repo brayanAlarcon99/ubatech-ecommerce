@@ -9,6 +9,7 @@ import { app, getDb } from "@/lib/firebase"
 import { doc, getDoc } from "firebase/firestore"
 import Image from "next/image"
 import { Eye, EyeOff } from "lucide-react"
+import { registerAdminSession } from "@/lib/admin-session-manager"
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("")
@@ -59,7 +60,7 @@ export default function AdminLoginPage() {
             return
           }
           
-          // Ahora existe, obtener rol
+          // Ahora existe, obtener rol y registrar sesión
           const userData = retryDoc.data()
           const role = userData.role
           
@@ -67,14 +68,30 @@ export default function AdminLoginPage() {
             localStorage.setItem("adminRole", role)
           }
           
+          // Registrar la sesión en el nuevo dispositivo (cerrar otras sesiones)
+          try {
+            await registerAdminSession(userCredential.user.uid, `Navegador - ${new Date().toLocaleString('es-ES')}`)
+          } catch (sessionError) {
+            console.error('Error registering session:', sessionError)
+            // Continuar de todas formas, el login fue exitoso
+          }
+          
           router.push("/admin/dashboard")
         } else {
-          // Usuario existe, obtener rol
+          // Usuario existe, obtener rol y registrar sesión
           const userData = userDoc.data()
           const role = userData.role
           
           if (typeof window !== "undefined") {
             localStorage.setItem("adminRole", role)
+          }
+          
+          // Registrar la sesión en el nuevo dispositivo (cerrar otras sesiones)
+          try {
+            await registerAdminSession(userCredential.user.uid, `Navegador - ${new Date().toLocaleString('es-ES')}`)
+          } catch (sessionError) {
+            console.error('Error registering session:', sessionError)
+            // Continuar de todas formas, el login fue exitoso
           }
           
           router.push("/admin/dashboard")

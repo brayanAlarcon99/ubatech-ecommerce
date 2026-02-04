@@ -57,6 +57,7 @@ export default function StorePage() {
   const [categoriesMap, setCategoriesMap] = useState<Record<string, string>>({});
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [categoriesWithPosition, setCategoriesWithPosition] = useState<Array<{id: string; name: string; position: number}>>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -117,16 +118,22 @@ export default function StorePage() {
 
       const categoriesSnapshot = await getDocs(collection(db, 'categories'));
       const catMap: Record<string, string> = {};
+      const categoriesWithPosition: Array<{id: string; name: string; position: number}> = [];
 
       for (const catDoc of categoriesSnapshot.docs) {
         const categoryId = catDoc.id;
         const categoryName = catDoc.data().name;
         const isVisible = catDoc.data().visible !== false; // Por defecto visible es true
+        const position = catDoc.data().position ?? 999; // Por defecto al final
         // Solo agregar al mapa si es visible
         if (isVisible) {
           catMap[categoryId] = categoryName;
+          categoriesWithPosition.push({ id: categoryId, name: categoryName, position });
         }
       }
+
+      // Ordenar categorías por posición
+      categoriesWithPosition.sort((a, b) => a.position - b.position);
 
       // 🚀 OPTIMIZACIÓN: Usar query única que agrupa por categoryId
       // ANTES: N queries secuenciales en el loop (30-50 segundos)
@@ -138,6 +145,7 @@ export default function StorePage() {
       setProducts(normalizedProducts);
       setSubcategoriesMap(subMap);
       setCategoriesMap(catMap);
+      setCategoriesWithPosition(categoriesWithPosition);
 
       console.timeEnd("[PERF] loadProducts");
     } catch (error) {
@@ -184,8 +192,7 @@ export default function StorePage() {
     );
   }
 
-  const categories = Object.entries(categoriesMap)
-    .map(([id, name]) => ({ id, name }))
+  const categories = categoriesWithPosition
     .filter((cat) => {
       return products.some((p) => p.category === cat.id);
     });
@@ -389,8 +396,20 @@ export default function StorePage() {
                     groupedByCategory.get(categoryName)!.push(product);
                   });
 
+                  // Crear un mapa de nombre -> posición para ordenar
+                  const categoryPositionMap = new Map<string, number>();
+                  categoriesWithPosition.forEach((cat) => {
+                    categoryPositionMap.set(categoriesMap[cat.id], cat.position);
+                  });
+
                   const categorySections = Array.from(groupedByCategory.entries())
-                    .sort((a, b) => a[0].localeCompare(b[0]))
+                    .sort((a, b) => {
+                      // Obtener posiciones (999 si no existe = al final)
+                      const posA = categoryPositionMap.get(a[0]) ?? 999;
+                      const posB = categoryPositionMap.get(b[0]) ?? 999;
+                      // Ordenar por posición
+                      return posA - posB;
+                    })
                     .map(([categoryName, products]) => [
                       categoryName,
                       [...products].sort((a, b) => (a.price || 0) - (b.price || 0)),

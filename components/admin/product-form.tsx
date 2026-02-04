@@ -38,7 +38,7 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
     category: product?.category || "",
     subcategory: product?.subcategory || "",
     stock: product?.stock || { djcelutecnico: 0, ubatech: 0 },
-    minStockByStore: product?.minStockByStore || { djcelutecnico: 0, ubatech: 0 },
+    stockToFetchByStore: product?.stockToFetchByStore || { djcelutecnico: 0, ubatech: 0 },
     images: initialImages,
     image: product?.image || "", // Mantener por compatibilidad
     sku: product?.sku || "",
@@ -200,8 +200,8 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
           [storeId]: finalValue,
         },
       }))
-    } else if (name.startsWith("minStock_")) {
-      const storeId = name.replace("minStock_", "");
+    } else if (name.startsWith("stockToFetch_")) {
+      const storeId = name.replace("stockToFetch_", "");
       // Primero limpiar ceros iniciales
       let cleanValue = removeLeadingZero(value)
       // Luego convertir a número
@@ -209,8 +209,8 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
       const finalValue = isNaN(numValue) ? 0 : Math.floor(numValue);
       setFormData((prev) => ({
         ...prev,
-        minStockByStore: {
-          ...prev.minStockByStore,
+        stockToFetchByStore: {
+          ...prev.stockToFetchByStore,
           [storeId]: finalValue,
         },
       }))
@@ -319,9 +319,9 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
           djcelutecnico: Math.floor(formData.stock.djcelutecnico || 0),
           ubatech: Math.floor(formData.stock.ubatech || 0),
         },
-        minStockByStore: {
-          djcelutecnico: Math.floor(formData.minStockByStore?.djcelutecnico || 0),
-          ubatech: Math.floor(formData.minStockByStore?.ubatech || 0),
+        stockToFetchByStore: {
+          djcelutecnico: Math.floor(formData.stockToFetchByStore?.djcelutecnico || 0),
+          ubatech: Math.floor(formData.stockToFetchByStore?.ubatech || 0),
         },
       }
       
@@ -429,31 +429,18 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                     <span className="text-xs text-gray-500">Stock actual: {formData.stock.djcelutecnico || 0}</span>
                   </div>
                   
-                  {/* Stock actual */}
-                  <div className="mb-3">
-                    <label className="text-xs text-gray-600 font-medium block mb-1">Stock Actual</label>
-                    <input
-                      type="number"
-                      name="stock_djcelutecnico"
-                      value={formData.stock.djcelutecnico}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                      placeholder="0"
-                    />
-                  </div>
-
-                  {/* Stock mínimo */}
+                  {/* Stock a traer */}
                   <div>
-                    <label className="text-xs text-gray-600 font-medium block mb-1">Stock Mínimo ⚠️</label>
+                    <label className="text-xs text-gray-600 font-medium block mb-1">Stock a Traer 📦</label>
                     <input
                       type="number"
-                      name="minStock_djcelutecnico"
-                      value={formData.minStockByStore?.djcelutecnico}
+                      name="stockToFetch_djcelutecnico"
+                      value={formData.stockToFetchByStore?.djcelutecnico}
                       onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
                       placeholder="0"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Cantidad mínima de productos que debe haber en esta tienda</p>
+                    <p className="text-xs text-gray-500 mt-1">Cantidad a traer. Al agregar stock se restará de este valor.</p>
                   </div>
                 </div>
 
@@ -464,31 +451,18 @@ export default function ProductForm({ product, categories, onSave, onCancel }: P
                     <span className="text-xs text-gray-500">Stock actual: {formData.stock.ubatech || 0}</span>
                   </div>
                   
-                  {/* Stock actual */}
-                  <div className="mb-3">
-                    <label className="text-xs text-gray-600 font-medium block mb-1">Stock Actual</label>
-                    <input
-                      type="number"
-                      name="stock_ubatech"
-                      value={formData.stock.ubatech}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
-                      placeholder="0"
-                    />
-                  </div>
-
-                  {/* Stock mínimo */}
+                  {/* Stock a traer */}
                   <div>
-                    <label className="text-xs text-gray-600 font-medium block mb-1">Stock Mínimo ⚠️</label>
+                    <label className="text-xs text-gray-600 font-medium block mb-1">Stock a Traer 📦</label>
                     <input
                       type="number"
-                      name="minStock_ubatech"
-                      value={formData.minStockByStore?.ubatech}
+                      name="stockToFetch_ubatech"
+                      value={formData.stockToFetchByStore?.ubatech}
                       onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 text-black bg-white"
                       placeholder="0"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Cantidad mínima de productos que debe haber en esta tienda</p>
+                    <p className="text-xs text-gray-500 mt-1">Cantidad a traer. Al agregar stock se restará de este valor.</p>
                   </div>
                 </div>
               </div>

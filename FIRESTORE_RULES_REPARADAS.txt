@@ -1,0 +1,191 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // FUNCIONES HELPER
+    // ============================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function hasAdminRole() {
+      return exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid));
+    }
+
+    function isSuper() {
+      return isAuthenticated() && 
+             hasAdminRole() &&
+             get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == "super";
+    }
+
+    function validateProductStructure() {
+      let product = request.resource.data;
+      let hasSubcategory = 'subcategory' in product && 
+                          product.subcategory != '' &&
+                          product.subcategory != null;
+      return !hasSubcategory || 
+             exists(/databases/$(database)/documents/subcategories/$(product.subcategory));
+    }
+
+    function validateSubcategoryStructure() {
+      let subcategory = request.resource.data;
+      return ('categoryId' in subcategory) && 
+             ('name' in subcategory) &&
+             subcategory.categoryId != '' &&
+             subcategory.name != '';
+    }
+
+    function validateAdminStructure() {
+      let admin = request.resource.data;
+      return ('email' in admin) && 
+             ('role' in admin) &&
+             admin.email != '' &&
+             (admin.role == 'admin' || admin.role == 'super');
+    }
+
+    // ============================================
+    // REGLAS PÚBLICAS (LECTURA SIN AUTENTICACIÓN)
+    // ============================================
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+                       hasAdminRole() && 
+                       validateProductStructure();
+      allow update: if isAuthenticated() && 
+                       hasAdminRole() && 
+                       validateProductStructure();
+      allow delete: if isAuthenticated() && hasAdminRole();
+    }
+
+    match /products/{productId}/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && hasAdminRole();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && hasAdminRole();
+      allow update: if isAuthenticated() && hasAdminRole();
+      allow delete: if isAuthenticated() && hasAdminRole();
+    }
+
+    match /subcategories/{subcategoryId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+                       hasAdminRole() && 
+                       validateSubcategoryStructure();
+      allow update: if isAuthenticated() && 
+                       hasAdminRole() && 
+                       validateSubcategoryStructure();
+      allow delete: if isAuthenticated() && hasAdminRole();
+    }
+
+    match /store_settings/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && hasAdminRole();
+    }
+
+    match /platform_info/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && hasAdminRole();
+    }
+
+    match /stores/{storeId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && hasAdminRole();
+      allow update: if isAuthenticated() && hasAdminRole();
+      allow delete: if isAuthenticated() && hasAdminRole();
+    }
+
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && hasAdminRole();
+    }
+
+    // ============================================
+    // CONTROL DE PÁGINA PÚBLICA
+    // ============================================
+    
+    match /public_site_status/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isSuper();
+    }
+
+    // ============================================
+    // MODO MANTENIMIENTO ADMIN
+    // ============================================
+    
+    match /admin_settings/{document=**} {
+      allow read: if isAuthenticated() && hasAdminRole();
+      allow write: if isAuthenticated() && isSuper();
+    }
+
+    // ============================================
+    // SESIONES DE ADMIN (NUEVA COLECCIÓN)
+    // ============================================
+    
+    match /adminSessions/{sessionId} {
+      // Leer sesiones: propia o todas si eres admin
+      allow read: if isAuthenticated() && 
+                     (sessionId.split('_')[0] == request.auth.uid || hasAdminRole());
+      
+      // Crear sesión: debe ser la tuya
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Actualizar sesión: tu sesión o cualquiera si eres admin
+      allow update: if isAuthenticated() && 
+                       (sessionId.split('_')[0] == request.auth.uid || hasAdminRole());
+      
+      // Eliminar sesión: tu sesión o cualquiera si eres admin
+      allow delete: if isAuthenticated() && 
+                       (sessionId.split('_')[0] == request.auth.uid || hasAdminRole());
+    }
+
+    // ============================================
+    // REGLAS PRIVADAS (AUTENTICACIÓN REQUERIDA)
+    // ============================================
+
+    match /adminUsers/{userId} {
+      // PERMITIR LEER PROPIO DOCUMENTO O SI ES ADMIN
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == userId || hasAdminRole());
+      
+      // CREAR: O es el PRIMER admin, O es tu propio perfil, O eres super admin
+      allow create: if isAuthenticated() && 
+                       validateAdminStructure() &&
+                       (request.auth.uid == userId || 
+                        isSuper() ||
+                        !exists(/databases/$(database)/documents/adminUsers));
+      
+      allow update: if isAuthenticated() && 
+                       hasAdminRole() && 
+                       validateAdminStructure();
+      
+      allow delete: if isAuthenticated() && isSuper();
+    }
+
+    match /orders/{orderId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /orders/{orderId}/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /config/{document=**} {
+      allow read, write: if isAuthenticated() && hasAdminRole();
+    }
+
+    // ============================================
+    // REGLA POR DEFECTO - DENEGAR TODO
+    // ============================================
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

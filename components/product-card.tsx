@@ -21,7 +21,9 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
   const [categoryName, setCategoryName] = useState<string>("")
   const [subcategoryName, setSubcategoryName] = useState<string>("")
   const [loading, setLoading] = useState(false)
-  const [liveStock, setLiveStock] = useState<number>(product.stock?.[storeId] ?? 0)
+  // En páginas públicas, siempre mostrar disponibles (máx 20) sin importar el stock real
+  const maxQuantity = 20
+  const [liveStock] = useState<number>(maxQuantity)
   const { addToCart } = useCart()
 
   useEffect(() => {
@@ -45,28 +47,6 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
       }
     }
   }, [showModal])
-
-  useEffect(() => {
-    loadLiveStock()
-    const interval = setInterval(() => {
-      loadLiveStock()
-    }, 3000) // Sincronizar cada 3 segundos
-    return () => clearInterval(interval)
-  }, [product.id, storeId])
-
-  const loadLiveStock = async () => {
-    try {
-      const db = getDb()
-      const productRef = doc(db, "products", product.id)
-      const productSnap = await getDoc(productRef)
-      if (productSnap.exists()) {
-        const data = productSnap.data() as Product
-        setLiveStock(data.stock?.[storeId] ?? 0)
-      }
-    } catch (error) {
-      console.error("Error loading live stock:", error)
-    }
-  }
 
   const loadCategoryAndSubcategory = async () => {
     setLoading(true)
@@ -192,15 +172,9 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
           </div>
 
           <div className="mt-1 sm:mt-2 pt-1 sm:pt-2 border-t border-gray-200">
-            {liveStock > 0 ? (
-              <span className="text-[9px] sm:text-xs font-semibold" style={{ color: "var(--accent-green)" }}>
-                Disponible: {liveStock}
-              </span>
-            ) : (
-              <span className="text-[9px] sm:text-xs font-semibold text-red-600">
-                Agotado
-              </span>
-            )}
+            <span className="text-[9px] sm:text-xs font-semibold" style={{ color: "var(--accent-green)" }}>
+              Disponible
+            </span>
           </div>
         </div>
       </div>
@@ -309,8 +283,8 @@ function ProductCard({ product, storeId = "djcelutecnico" }: ProductCardProps) {
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
                       <span className="text-gray-700 font-semibold text-sm">Stock disponible:</span>
-                      <span className="text-base sm:text-lg font-bold" style={{ color: liveStock > 0 ? "var(--accent-green)" : "#ef4444" }}>
-                        {liveStock > 0 ? `${liveStock} unidades` : "Agotado"}
+                      <span className="text-base sm:text-lg font-bold" style={{ color: "var(--accent-green)" }}>
+                        Disponible
                       </span>
                     </div>
                   </div>

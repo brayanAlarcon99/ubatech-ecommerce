@@ -13,6 +13,7 @@ interface Category {
   subcategories?: Subcategory[]
   showSubcategories?: boolean
   visible?: boolean
+  position?: number
 }
 
 export default function CategoriesManager() {
@@ -22,6 +23,9 @@ export default function CategoriesManager() {
   const [editingName, setEditingName] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [draggedItem, setDraggedItem] = useState<string | null>(null)
+  const [dragOverItem, setDragOverItem] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
   
   // Estados para subcategorías
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null)
@@ -43,6 +47,7 @@ export default function CategoriesManager() {
         snapshot.docs.map(async (doc) => {
           const categoryName = doc.data().name
           const isVisible = doc.data().visible !== false // Por defecto visible es true
+          const position = doc.data().position ?? 999 // Por defecto al final
           // Contar productos en esta categoría (solo si el nombre existe)
           let productCount = 0
           if (categoryName) {
@@ -61,10 +66,13 @@ export default function CategoriesManager() {
             subcategories: subcategories,
             showSubcategories: false,
             visible: isVisible,
+            position: position,
           }
         })
       )
-      setCategories(cats)
+      // Ordenar por posición
+      const sortedCats = cats.sort((a, b) => (a.position ?? 999) - (b.position ?? 999))
+      setCategories(sortedCats)
     } catch (error) {
       console.error("[v0] Error loading categories:", error)
       setError("Error al cargar categorías")
@@ -184,11 +192,60 @@ export default function CategoriesManager() {
     }
   }
 
+  async function handleDragEnd() {
+    if (!draggedItem || !dragOverItem || draggedItem === dragOverItem) {
+      setDraggedItem(null)
+      setDragOverItem(null)
+      setIsDragging(false)
+      return
+    }
+
+    try {
+      const db = getDb()
+      const draggedIndex = categories.findIndex((c) => c.id === draggedItem)
+      const dragOverIndex = categories.findIndex((c) => c.id === dragOverItem)
+
+      if (draggedIndex === -1 || dragOverIndex === -1) {
+        setDraggedItem(null)
+        setDragOverItem(null)
+        setIsDragging(false)
+        return
+      }
+
+      // Crear nuevo array con las categorías reordenadas
+      const newCategories = [...categories]
+      const [draggedCategory] = newCategories.splice(draggedIndex, 1)
+      newCategories.splice(dragOverIndex, 0, draggedCategory)
+
+      // Actualizar estado local inmediatamente para feedback visual instantáneo
+      setCategories(newCategories)
+
+      // Actualizar posiciones en la BD en segundo plano
+      for (let i = 0; i < newCategories.length; i++) {
+        await updateDoc(doc(db, "categories", newCategories[i].id), {
+          position: i,
+        })
+      }
+
+      setDraggedItem(null)
+      setDragOverItem(null)
+      setIsDragging(false)
+    } catch (error) {
+      console.error("[v0] Error reordering categories:", error)
+      setError("Error al reordenar las categorías")
+      setIsDragging(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold" style={{ color: "var(--primary-dark)" }}>
         Gestión de Categorías
       </h1>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800">
+        <p className="text-sm font-medium">💡 Tip: Arrastra las categorías para cambiar su orden. Este orden se reflejará en la página pública.</p>
+      </div>
 
       <div className="bg-white rounded-lg shadow p-6">
         <form onSubmit={handleAddCategory} className="space-y-4">
@@ -250,27 +307,69 @@ export default function CategoriesManager() {
               {categories.map((category) => (
                 <React.Fragment key={category.id}>
                   {/* Fila de la categoría */}
-                  <tr className="border-t border-gray-200 hover:bg-gray-50">
+                  <tr 
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedItem(category.id)
+                      setIsDragging(true)
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      setDragOverItem(category.id)
+                    }}
+                    onDragLeave={() => {
+                      setDragOverItem(null)
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleDragEnd()
+                    }}
+                    onDragEnd={() => {
+                      setDraggedItem(null)
+                      setDragOverItem(null)
+                      setIsDragging(false)
+                    }}
+                    className={`border-t border-gray-200 transition-all duration-200 ease-out ${
+                      draggedItem === category.id 
+                        ? "bg-blue-50 opacity-60 shadow-sm cursor-grabbing" 
+                        : dragOverItem === category.id
+                        ? "bg-blue-100 shadow-md border-l-4 border-l-blue-500"
+                        : "hover:bg-gray-50 cursor-grab"
+                    }`}
+                  >
                     <td className="px-6 py-4">
-                      {editingId === category.id ? (
-                        <input
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          className="w-full px-3 py-1 border border-gray-300 rounded text-black"
-                        />
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setExpandedCategoryId(expandedCategoryId === category.id ? null : category.id)}
-                            className="text-gray-500 hover:text-gray-700 px-2"
-                            title={expandedCategoryId === category.id ? "Contraer" : "Expandir"}
-                          >
-                            {expandedCategoryId === category.id ? "▼" : "▶"}
-                          </button>
-                          <span className="text-black font-medium">{category.name}</span>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex-shrink-0 p-2 text-lg rounded transition-all duration-150 ease-out ${
+                            draggedItem === category.id
+                              ? "text-blue-600 bg-blue-100"
+                              : "text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                          }`}
+                          title="Arrastra para reordenar"
+                        >
+                          ⋮⋮
                         </div>
-                      )}
+                        {editingId === category.id ? (
+                          <input
+                            type="text"
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            className="w-full px-3 py-1 border border-gray-300 rounded text-black"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setExpandedCategoryId(expandedCategoryId === category.id ? null : category.id)}
+                              className="text-gray-500 hover:text-gray-700 px-2"
+                              title={expandedCategoryId === category.id ? "Contraer" : "Expandir"}
+                            >
+                              {expandedCategoryId === category.id ? "▼" : "▶"}
+                            </button>
+                            <span className="text-black font-medium">{category.name}</span>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="text-black">{category.productCount || 0}</span>
