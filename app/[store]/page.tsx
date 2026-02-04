@@ -58,6 +58,7 @@ export default function StorePage() {
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [categoriesWithPosition, setCategoriesWithPosition] = useState<Array<{id: string; name: string; position: number}>>([]);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -74,10 +75,12 @@ export default function StorePage() {
       }
 
       setCheckingStatus(false);
+      setInitialLoadComplete(true);
       loadProducts();
     } catch (error) {
       console.error('Error checking public status:', error);
       setCheckingStatus(false);
+      setInitialLoadComplete(true);
       loadProducts();
     }
   }
@@ -368,7 +371,7 @@ export default function StorePage() {
                 </div>
               )}
 
-              {loading ? (
+              {!initialLoadComplete ? (
                 <div className="flex justify-center py-12">
                   <div
                     className="w-8 h-8 border-4 border-gray-300 border-t-transparent rounded-full animate-spin"
