@@ -77,8 +77,8 @@ export default function ActiveSessionsManager({
   // Cargar sesiones al montar el componente
   useEffect(() => {
     loadSessions()
-    // Recargar sesiones cada 30 segundos
-    const interval = setInterval(loadSessions, 30000)
+    // Recargar sesiones cada 60 segundos (en lugar de 30) para reducir solicitudes
+    const interval = setInterval(loadSessions, 60000)
     return () => clearInterval(interval)
   }, [token, userId])
 
@@ -120,11 +120,9 @@ export default function ActiveSessionsManager({
   )
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-4">
-        <div className="w-5 h-5 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    // No mostrar spinner, solo cargar silenciosamente
+    // El componente solo se muestra si hay sesiones activas
+    return null
   }
 
   if (otherActiveSessions.length === 0) {
